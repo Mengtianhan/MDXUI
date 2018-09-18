@@ -180,4 +180,32 @@ namespace TL2{
 			t, fun
 			);
 	}
+
+	template<class R,class...Args>
+	struct MSLOTEXHELP{
+		typedef std::function<R(Args...)> FunType;
+		MSLOTEXHELP() :m_Fun(nullptr){}
+
+		template<class T>
+		MSLOTEXHELP(T fun):m_Fun(fun){}
+
+
+		template<class T>
+		MSLOTEXHELP& operator=(const T& fun){
+			m_Fun = fun;
+			return *this;
+		}
+
+		FunType Fun() const{
+			return m_Fun;
+		}
+	private:		
+		FunType m_Fun;
+	};
+
+
+	template<class R, class...Args>
+	std::function<R(Args...)> MSLOTEX(const MSLOTEXHELP<R,Args...>& fun){
+		return fun.Fun();
+	}
 }

@@ -278,7 +278,7 @@ namespace mj{
 	//
 	// 将字符串表示的16进制表示为10进制数
 	//
-	static inline unsigned int HexToNum(const std::string& hex){
+	static inline unsigned __int32 HexToNum(const std::string& hex){
 		static std::string g_str1("0123456789abcdef");
 		static std::string g_str2("0123456789ABCDEF");
 		//
@@ -311,6 +311,9 @@ namespace mj{
 			throw std::runtime_error("Inalid Parameter....");
 		}
 		else if (count < 8){
+			//std::string str(8 - count, '0');
+			//str += hex_str;
+			//hex_str = str;
 			for (int i = 0; i < (8 - count); ++i){
 				hex_str += "0";
 			}
@@ -340,7 +343,7 @@ namespace mj{
 			unsigned char _c3 = num3;
 			str[3 - i / 2] = _c3;
 		}
-		unsigned int last_num = *(unsigned int*)(str);
+		unsigned __int32 last_num = *(unsigned __int32*)(str);
 		return last_num;
 	}
 
@@ -369,41 +372,12 @@ namespace mj{
 		// 将Deg计算出正弦值
 		//
 
-		T linear = ample;
-		if (std::abs(base - 0) > 0.005){
-			linear = std::pow(10.0, ample / base); //将dB转换成线性
-		}
-		if (isLear){
-			linear = ample;
-		}
-		T rad = std::abs(std::tan(phase / 180.0*PI));
-
-		T k = 1.0;
-		T j = 1.0;
-		T f = phase / 180.0;
-		if (f <= 0){
-			k = -1.0;
-		}
-		if (f >= -0.5 && f <= 0.5){
-			j = 1.0;
-		}
-		else{
-			j = -1.0;
-		}
-
-		//============================================
-		// linear*linear = x*x+y*y
-		// rad = y/x    =========================>
-		// y = rad*x    =========================>
-		// linear*linear = x*x + rad*x*rad*x ====>
-		// linear*linear = x*x(1+rad*rad)  ======>
-		// x*x = (linear*linear) / (1+rad*rad) ==>
-		// x   = linear/sqrt(1+rad*rad) =========>ok
-		//============================================
-		T x = 1.0, y = 1.0;
-		T temp = linear / std::sqrt(1.0 + rad*rad);
-		x = temp*j;
-		y = rad*temp*k;
+                T linear = linear = std::pow(10.0, ample / base);
+                if(isLear){
+                    linear = ample;
+                }
+                T x = linear*std::cos(phase/180.0*PI);
+                T y = linear*std::sin(phase/180.0*PI);
 		return std::complex<T>(x, y);
 	}
 

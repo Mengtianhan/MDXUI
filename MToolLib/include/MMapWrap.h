@@ -15,7 +15,7 @@ public:
 	typedef typename MParamWrape<V>::type v_type;
 
 	typedef std::map<K, V> Type;
-	typedef std::pair<K, V> ValueType;
+	typedef std::pair<const K, V> ValueType;
 
 private:
 	//

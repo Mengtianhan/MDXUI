@@ -124,9 +124,9 @@ namespace mj{
 		int get_subnum() const;
 
 
-                int get_pointsnum() const{
-                    return mOrgPoints.size();
-                }
+        int get_pointsnum() const{
+               return mOrgPoints.size();
+        }
 
 
 		//
@@ -138,6 +138,14 @@ namespace mj{
 		// 打印数据信息
 		//
 		void print(const char* msg, std::ostream& os = std::cout);
+
+
+		//
+		// 获取所有加载的点
+		//
+		MTypeWrap<std::vector<PointType>> get_points() const{
+			return mOrgPoints;
+		}
 	private:
 		MTypeWrap<std::vector<PointType>>  mOrgPoints;
 		double				   mDistance{ 0 };
@@ -241,6 +249,9 @@ namespace mj{
 		while (!header.istart_with("Counts:") && !inFile.eof()){
 			inFile >> header;
 		}
+		if (inFile.eof()){
+			return;
+		}
 		int count;
 		header.reg_find(mj::REGFORFLOAT, count);
 
@@ -250,10 +261,16 @@ namespace mj{
 			inFile >> header;
 		}
 
-
+		if (inFile.eof()){
+			return;
+		}
 
 		while (!header.icontains("Begin:") && !inFile.eof()){
 			inFile >> header;
+		}
+
+		if (inFile.eof()){
+			return;
 		}
 
 		MString mstr;

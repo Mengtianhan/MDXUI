@@ -44,7 +44,7 @@ namespace mj{
         struct MFloatEquals{
             MFloatEquals(T res = 0.5):mRes(res){}
             bool operator()(T val1,T val2){
-                return std::abs(val1-val2)<mRes;
+                return std::abs(val1-val2)<=mRes;
             }
         private:
             T mRes{0.5};
@@ -57,7 +57,7 @@ namespace mj{
         struct MIntEquals{
             MIntEquals(T res = 0):mRes(res){}
             bool operator()(T val1,T val2){
-                return std::abs(val1-val2)<mRes;
+                return std::abs(val1-val2)<=mRes;
             }
         private:
             T mRes{0};

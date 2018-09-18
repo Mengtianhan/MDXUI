@@ -1429,9 +1429,7 @@ template<class T, class A, template<class T1, class A1> class C, class Allocator
 template<class U>
 MTypeWrap< C<T, A>, AllocatorType>& MTypeWrap< C<T, A>, AllocatorType>::operator=(const std::vector<U>& other)
 {
-	if (mVal->IsShared()){
-		mVal = new typename MTypeWrap< C<T, A>, AllocatorType>::MContentType();
-	}
+	clear();
 	for (auto& v : other){
 		T val;
 		mj::copyvalue(val, v);
@@ -1445,9 +1443,7 @@ template<class T, class A, template<class T1, class A1> class C, class Allocator
 template<class U, class A2, template<class, class>class C2>
 MTypeWrap< C<T, A>, AllocatorType>& MTypeWrap< C<T, A>, AllocatorType>::operator=(const C2<U, A2>& other)
 {
-	if (mVal->IsShared()){
-		mVal = new typename MTypeWrap< C<T, A>, AllocatorType>::MContentType();
-	}
+	clear();
 	for (auto& v : other){
 		T val;
 		mj::copyvalue(val, v);
@@ -1460,9 +1456,7 @@ template<class T, class A, template<class T1, class A1> class C, class Allocator
 template<class U, class A2>
 MTypeWrap< C<T, A>, AllocatorType>& MTypeWrap< C<T, A>, AllocatorType>::operator=(const MTypeWrap<C<U, A2>, AllocatorType>& other)
 {
-	if (mVal->IsShared()){
-		mVal = new typename MTypeWrap< C<T, A>, AllocatorType>::MContentType();
-	}
+	clear();
 	for (auto& v : other){
 		T val;
 		mj::copyvalue(val, v.ref());
@@ -3848,7 +3842,7 @@ MTypeWrap< C<T, A>, AllocatorType>& MTypeWrap< C<T, A>, AllocatorType>::operator
 		mVal = new MTypeWrap< C<T, A>, AllocatorType>::MContentType(*mVal);
 	}
 	for (int i = 0; i < size(); ++i){
-		this->at(i) = this->at(i) + other.at(i);
+                this->at(i).ref() += other.at(i).ref();
 	}
 	return *this;
 }
@@ -3862,7 +3856,7 @@ MTypeWrap< C<T, A>, AllocatorType>& MTypeWrap< C<T, A>, AllocatorType>::operator
 		mVal = new MTypeWrap< C<T, A>, AllocatorType>::MContentType(*mVal);
 	}
 	for (int i = 0; i < size(); ++i){
-		this->at(i) = this->at(i) - other.at(i);
+                this->at(i).ref() -= other.at(i).ref();
 	}
 	return *this;
 }

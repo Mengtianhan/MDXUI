@@ -8,6 +8,7 @@
 #include <MScopeLock.h>
 #include <MMatrixSheet.h>
 #include <MTypeWrap.h>
+#include <MParallelFun.h>
 
 namespace TL{
 
@@ -214,7 +215,7 @@ namespace TL{
                 void save(const char* filename,const char* spliter,bool isBinary = true);
                 void saveAll(const char* filename,const char* spliter);
                 void load(const char* filename,const char* spliter,bool isBinary = true);
-                void loadAll(const char* filename,const char* spliter);
+				void loadAll(const char* filename, const char* spliter, bool isNeedFilter = true);
 
                 //
                 // 从流中读取 或者 将数据写进流
@@ -3676,26 +3677,40 @@ namespace TL{
         }
 
         template<class ThreadMode,class T, class...Args>
-        void MNoSqlDB<ThreadMode,T,Args...>::loadAll(const char* filename,const char* spliter)
+        void MNoSqlDB<ThreadMode,T,Args...>::loadAll(const char* filename,const char* spliter,bool isNeedFilter)
         {
-            std::ifstream inFile(filename);
-            if(inFile.fail()){
-                return;
-            }
-            mData.clear();
-            while(inFile.eof() == false){
-                std::string str;
-                std::getline(inFile,str);
-                MString str2 = str;
-                str2.trim();
-                if(str2.empty()){
-                    continue;
-                }
-                value_type val;
-                if(TL::FromStr(str,val,spliter)){
-                    mData.push_back(val);
-                }
-            }
+        
+			mData.clear();
+			MString mstr;
+			mstr.fromFile(filename);
+			if (mstr.empty()){
+				return;
+			}
+			std::vector<std::wstring> vstr;
+			mstr.split(L"\n", vstr);
+			if (vstr.empty()){
+				return;
+			}
+
+			mData.reserve(vstr.size());
+
+			for (int i = 0; i < vstr.size();++i){
+				MString str2 = vstr[i];
+				if (str2.empty()){
+					continue;
+				}
+
+				if (isNeedFilter){
+					if(str2.istart_with(L"#") || str2.istart_with(L"$") || str2.istart_with(L"/*") || str2.istart_with(L"//")){
+						continue;
+					}
+				}
+
+				value_type val;
+				if (TL::FromStr(str2, val, spliter)){
+					mData.push_back(val);
+				}
+			}
         }
 
         template<class ThreadMode,class T, class...Args>
@@ -3779,7 +3794,7 @@ namespace TL{
             mData.clear();
             for(int i=0;i<m.rows();++i){
                 std::vector<MString> vs = m.row(i);
-                MString str = mj::JoinToMstring(vs,"#");
+                MString str = mj::JoinToMString(vs,"#");
                 value_type val;
                 TL::FromStr(str,val,"#");
                 mData.push_back(val);

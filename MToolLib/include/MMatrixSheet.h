@@ -1467,7 +1467,7 @@ namespace mj{
 	void MMatrixSheet<T, Property, A, C>::remove_row(unsigned rowindex)
 	{
 		for (unsigned i = 0; i < mCols; ++i){
-			auto it = mData.begin() + i*mRows + rowindex - i;
+			auto it = mData.begin() + (i*mRows + rowindex - i);
 			mData.erase(it);
 		}
 		mRows -= 1;

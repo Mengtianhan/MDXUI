@@ -416,7 +416,7 @@ namespace TL{
 	};
 
 	template<class...Args>
-	bool FromStr(const std::string& str, MMultType<mjTL::MTypeList<Args...>>& output, const std::string& spliter = " \t,:"){
+	bool FromStr(const MString& str, MMultType<mjTL::MTypeList<Args...>>& output, const std::string& spliter = " \t,:"){
 		MString Mstr = str;
 		std::vector<MString> v;
 		Mstr.split(spliter, v);

@@ -1055,7 +1055,7 @@ namespace mj{
 						lua_pushinteger(mL, str.ToOtherType<Key>());
 					}
 					else if (std::is_same<Key, bool>::value){
-						lua_pushinteger(mL, str.ToOtherType<Key>());
+						lua_pushboolean(mL, str.ToOtherType<Key>());
 					}
 					else{
 						std::string stdstr = str;
