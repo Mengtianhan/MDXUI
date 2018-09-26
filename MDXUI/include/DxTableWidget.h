@@ -2,9 +2,25 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 //
-// This source file is part of the MDXUI source distribution and is Copyright
-// 2017-2018 by Mengjin (sh06155@hotmail.com).
-// The latest version may be obtained from [******************]
+// This source file is part of the MDXUI source distribution
+// Copyright (C) 2017-2018 by Mengjin (sh06155@hotmail.com)
+//
+// This software is provided 'as-is', without any express or implied warranty.
+// In no event will the authors be held liable for any damages arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it freely,
+// subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented;
+//    you must not claim that you wrote the original software.
+//    If you use this software in a product, an acknowledgment
+//    in the product documentation would be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such,
+//    and must not be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source distribution.
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -47,6 +63,7 @@ namespace DxUI{
 		void				SetHorizonItemWidth(int w);
 		void				SetHorizonItemHeight(int h);
 		void				SetHorizonItemAutoWithContent(bool isauto);
+		void				SetHeaderFactory(CDxTableHeader* Factor);
 		int					GetColums() const;
 		int					GetRows() const;
 
@@ -62,6 +79,8 @@ namespace DxUI{
 		void				ReceiveEvent(CDxUIEvent* e);
 		void				OnResizeEvent();
 
+
+		void				SetAvgEnabel(bool isEnabel); // 设置横纵均等分
 		void				HorizonHeaderShowable(bool isShow);
 		void				VerticalHeaderShowable(bool isShow);
 
@@ -82,6 +101,8 @@ namespace DxUI{
 		DxLabelList 			mHorizonHead;
 		DxLabelList				mVerticalHead;
 		DxTableItemMat			mItems;
+		CDxTableHeader*			mNullHeader{ nullptr };
+		CDxTableHeader*			pHeaderFactor{ nullptr };
 		int						mItemWidth{ 80 };
 		int						mItemHeight{ 40 };
 		int						mTotallWidth{ 0 };
@@ -104,6 +125,7 @@ namespace DxUI{
 		bool					bIsWidthIsAuto{ false };
 		bool					bIsHideVerticalHeader{ false };
 		bool					bIsHideHorizonHeader{ false };
+		bool					bIsAvgSize{ false }; // 均分
 		CDxTableHeader*			pCurrentHeader{ nullptr };
 		CDxWidget*				pCurrentItem{ nullptr };
 		CDxWidget*				pLastSelectItem{ nullptr }; // 搭配 pCurrentItem 用于绘图使用
