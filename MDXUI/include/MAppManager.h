@@ -1260,7 +1260,7 @@ private:
     // hold住一个操作必要的时候可以提取用于辅助完成一些外部完成的任务
     //
     TL::Vector<MAny>          mAnyAction;
-    TL::Map<MString,MAny>     mAnyActionMap;
+    std::map<MString,MAny>     mAnyActionMap;
 
     //
     // 从dll中加载模块

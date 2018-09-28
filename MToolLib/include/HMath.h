@@ -650,5 +650,9 @@ namespace mj{
 		else if (v > 0) return 1;
 		else return -1;
 	}
+
+	static inline int nextpow2(int n){
+
+	}
 }
 

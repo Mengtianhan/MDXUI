@@ -571,6 +571,7 @@ namespace mj{
 		MMatrixSheet log10() const;
 		MMatrixSheet sqrt() const;
 		MMatrixSheet square() const;
+		MMatrixSheet rad() const;
 
 		//
 		// 如果T是复数便可以使用下面的函数
@@ -598,6 +599,7 @@ namespace mj{
 
 		template<class U = typename T::value_type, class Property2 = Property, class A2 = std::allocator<U>>
 		void set_real(const MMatrixSheet<U, Property2, A2, C>& realmat);
+
 
 		//
 		// 友元函数
@@ -915,7 +917,7 @@ namespace mj{
 		mCols = other.n_cols;
 		mRows = other.n_rows;
 		resize(mRows, mCols);
-		memcpy(&mData[0], other.memptr(), sizeof(double)*mRows*mCols);
+		memcpy(&mData[0], other.memptr(), sizeof(T)*mRows*mCols);
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
@@ -923,20 +925,20 @@ namespace mj{
 		this->mCols = other.n_cols;
 		this->mRows = other.n_rows;
 		resize(mRows, mCols);
-		memcpy(&mData[0], other.memptr(), sizeof(double)*mRows*mCols);
+		memcpy(&mData[0], other.memptr(), sizeof(T)*mRows*mCols);
 		return *this;
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
 	MMatrixSheet<T, Property, A, C>::operator arma::Mat<T>() const{
-		const double* ptr = static_cast<const double*>(&mData[0]);
+		const T* ptr = static_cast<const T*>(&mData[0]);
 		arma::Mat<T> m(ptr, mRows, mCols);
 		return m;
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
 	MMatrixSheet<T, Property, A, C>::operator arma::Mat<T>(){
-		double* ptr = static_cast<double*>(&mData[0]);
+		T* ptr = static_cast<T*>(&mData[0]);
 		arma::Mat<T> m(ptr, mRows, mCols);
 		return m;
 	}
@@ -1750,7 +1752,6 @@ namespace mj{
 		if (mRows != other.mRows || mCols != other.mCols){
 			return *this;
 		}
-		outmat.resize(mRows, mCols);
 		for (unsigned i = 0; i < mRows; ++i){
 			for (unsigned j = 0; j < mCols; ++j){
 				(*this)(i, j) *= other(i, j);
@@ -2676,6 +2677,19 @@ namespace mj{
 		return outmat;
 	}
 
+
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::rad() const{
+		MMatrixSheet outmat;
+		outmat.resize(mRows, mCols);
+		for (unsigned i = 0; i < mRows; ++i){
+			for (unsigned j = 0; j < mCols; ++j){
+				outmat(i, j) = (*this)(i, j)/180.0*mj::PI;
+			}
+		}
+		return outmat;
+	}
+
 	template<class T, class Property, class A, template<class, class>class C>
 	template<class U, class Property2, class A2>
 	MMatrixSheet<U, Property2, A2, C> MMatrixSheet<T, Property, A, C>::imag() const
@@ -2797,3 +2811,153 @@ namespace mj{
 	typedef MMatrixSheet<std::complex<double>> cx_dmat;
 	typedef MMatrixSheet<std::complex<float>> cx_fmat;
 }// namespace mj
+
+
+#include <HMath.h>
+//
+// 封装几个常用函数
+//
+namespace mjmat{
+
+	//
+	// 定义一个常量
+	//
+	const static std::complex<double> MI = std::sqrt(std::complex<double>(-1));
+
+	template<class T>
+	static inline mj::cx_dmat sqrt(const mj::MMatrixSheet<T>& mat){
+		mj::cx_dmat outmat;
+		outmat.resize(mat.rows(), mat.cols());
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				std::complex<double> cp(mat(i, j));
+				outmat(i, j) = std::sqrt(cp);
+			}
+		}
+		return outmat;
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<T> abs(const mj::MMatrixSheet<T>& mat){
+		mj::MMatrixSheet<T> outmat;
+		outmat.resize(mat.rows(), mat.cols());
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				outmat(i, j) = std::abs(mat(i, j));
+			}
+		}
+		return outmat;
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<T> square(const mj::MMatrixSheet<T>& mat){
+		mj::MMatrixSheet<T> outmat;
+		outmat.resize(mat.rows(), mat.cols());
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				outmat(i, j) = std::pow(mat(i, j),2);
+			}
+		}
+		return outmat;
+	}
+
+
+	//
+	// 将虚部置为某数
+	//
+	static inline void set_image(mj::cx_dmat& mat, double val){
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				mat(i, j).imag(val);
+			}
+		}
+	}
+
+
+	//
+	// 将实部置为某数
+	//
+	static inline void set_real(mj::cx_dmat& mat, double val){
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				mat(i, j).real(val);
+			}
+		}
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<T> fill(int row, int col, const T& val){
+		mj::MMatrixSheet<T> mat;
+		mat.resize(row, col);
+		mat.fill(val);
+		return mat;
+	}
+
+	static inline mj::dmat one(int row, int col){
+		mj::dmat mat;
+		mat.resize(row, col);
+		mat.fill(1);
+		return mat;
+	}
+
+	static inline mj::dmat zero(int row, int col){
+		mj::dmat mat;
+		mat.resize(row, col);
+		mat.fill(0);
+		return mat;
+	}
+
+	static inline mj::dmat rand(int row, int col,double minval = -1.0,double maxval = 1.0){
+		mj::dmat mat;
+		mat.resize(row, col);
+		mj::GenRandom<double> gen(minval, maxval);
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				mat(i, j) = gen();
+			}
+		}
+		return mat;
+	}
+
+
+	//
+	// e(iθ)
+	//
+	static inline mj::cx_dmat exp(const mj::dmat& mat,int sign = 1){
+		mj::cx_dmat outmat;
+		outmat.resize(mat.rows(), mat.cols());
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				double val = mat(i, j);
+				std::complex<double> cp(std::cos(val), sign*std::sin(val));
+				outmat(i, j) = cp;
+			}
+		}
+		return outmat;
+	}
+
+
+	static inline std::vector<std::complex<double>> exp(const std::vector<double>& mat, int sign = 1){
+		std::vector<std::complex<double>> outmat;		
+		for (int j = 0; j < mat.size(); ++j){
+			double val = mat.at(j);
+			std::complex<double> cp(std::cos(val), sign*std::sin(val));
+			outmat.push_back(cp);
+		}
+		return outmat;
+	}
+
+	static inline std::complex<double> exp(double val, int sign = 1){
+		std::complex<double> cp(std::cos(val), sign*std::sin(val));
+		return cp;
+	}
+
+
+	static inline double sind(double angle){
+		return std::sin(angle / 180.0*mj::PI);
+	}
+
+	static inline double cosd(double angle){
+		return std::cos(angle / 180.0*mj::PI);
+	}
+}
