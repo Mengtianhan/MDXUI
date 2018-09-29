@@ -442,6 +442,14 @@ namespace DxUI{
 		void			OnIdle();
 
 
+		//
+		// 可通过外部将句柄传递进来用于和其他框架交互
+		// 目前只支持Attach 不支持Detach
+		//
+		void			AttachHwnd(HWND hwnd);
+		
+
+
 		//+---------------------------------
 		//
 		// 数据成员

@@ -58,6 +58,8 @@ public:
 	MPlotWindow();
 	~MPlotWindow();
 
+	void		AddExtButton(DxUI::CDxPushButton* btn);
+	void		RemoveButton(DxUI::CDxPushButton* btn);
 	static void RegisterAlg(IAlgForPlotInterace* AlgPtr);
 
 protected:
@@ -201,6 +203,15 @@ protected:
 	DxUI::CDxPushButton*		p_MaxValueButton{ nullptr };
 	DxUI::CDxPushButton*		p_MinValueButton{ nullptr };
 
+
+	//
+	//+--------------------------------------------------------
+	//
+	// 外部添加的按钮操作
+	//
+	//+--------------------------------------------------------
+	//
+	TL::Vector<DxUI::CDxPushButton*>	m_ExtButtons;
 	static std::vector<IAlgForPlotInterace*>  s_AlgPlotVector;
 };
 
