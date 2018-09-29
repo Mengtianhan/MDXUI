@@ -79,3 +79,24 @@ struct CDxEffectsWrap{
 extern "C" LUA_DXUI_API  CDxApplication* __stdcall GetAppliactionFromLua(lua_State* L);
 extern "C" LUA_DXUI_API  MSerialize* __stdcall GetXmlFromLua(lua_State* L);
 extern "C" LUA_DXUI_API  CDxWidget*	__stdcall GetWidgetFromLua(lua_State* L);
+
+
+
+//
+//+----------------------------------------------------------------------------------------
+//
+namespace LuaPlus{
+	class LuaStateOwner;
+}
+
+
+class LUA_DXUI_API CDxLuaWindow{
+public:
+	CDxLuaWindow();
+	~CDxLuaWindow();
+	void		DoFile(const char* FileName);
+	CDxWidget*  Window(const char* Name);
+	LuaPlus::LuaStateOwner* GetState() const;
+private:
+	LuaPlus::LuaStateOwner*  p_LuaState{ nullptr };
+};
