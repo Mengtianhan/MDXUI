@@ -42,12 +42,15 @@ namespace DxUI{
 		CDxScrollArea();
 		~CDxScrollArea();
 
+		void AddChild(CDxWidget* childWindow);
+		void RemoveChild(CDxWidget* childWindow);
 		void Attach(CDxWidget* window);
 		CDxWidget* Dettach();
 		void ReceiveEvent(CDxUIEvent* e);
 		void UpdateChildWindowPos();
 	protected:
-		void OnDealItemForDistance(unsigned disx, unsigned disy);
+		void OnDealItemForDistance(int disx, int disy);
+		bool OnNotify(DXNotifyUI* NotifyEvent);
 		void OnRendWindow(IPainterInterface* painter);
 	private:
 		CDxHorizonScrollBar      mHorizonBar;
