@@ -450,6 +450,12 @@ namespace DxUI{
 		
 
 
+		//
+		// 清除子窗口资源
+		//
+		void			UnInitResourceForChildren();
+
+
 		//+---------------------------------
 		//
 		// 数据成员

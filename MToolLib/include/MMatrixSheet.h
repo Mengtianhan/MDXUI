@@ -230,6 +230,18 @@ namespace mj{
 		MMatrixSheet& operator=(MMatrixSheet<T, Property2, A, C>&& other);
 
 		//
+		// 其他不同类型的转换
+		//
+		template<class U, class Property2 = Property, class A2 = std::allocator<U> >
+		MMatrixSheet(const MMatrixSheet<U, Property2, A2, C>& other);
+
+
+		template<class U, class Property2 = Property, class A2 = std::allocator<U> >
+		MMatrixSheet& operator=(const MMatrixSheet<U, Property2, A2, C>& other);
+
+
+
+		//
 		// 类型转换
 		//
 		template<class U, template<class>class M>
@@ -910,6 +922,39 @@ namespace mj{
 		other.reset();
 		return *this;
 	}
+
+
+	//
+	// 不同类型之间的转换
+	//
+	template<class T, class Property, class A, template<class, class>class C>
+	template<class U, class Property2, class A2>
+	MMatrixSheet<T, Property, A, C>::MMatrixSheet(const MMatrixSheet<U, Property2, A2, C>& other){
+		if (!other.empty()){
+			resize(other.rows(), other.cols());
+			for (int i = 0; i < other.rows(); ++i){
+				for (int j = 0; j < other.cols(); ++j){
+					mj::copyvalue((*this)(i, j), other(i, j));
+				}
+			}
+		}
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	template<class U, class Property2, class A2>
+	MMatrixSheet<T, Property, A, C>& MMatrixSheet<T, Property, A, C>::operator=(const MMatrixSheet<U, Property2, A2, C>& other){
+		reset();
+		if (other.empty())
+			return *this;
+		resize(other.rows(), other.cols());
+		for(int i=0;i<other.rows();++i){
+			for(int j=0;j<other.cols();++j){
+				mj::copyvalue((*this)(i, j), other(i, j));
+			}
+		}
+		return *this;
+	}
+
 
 #ifdef __ARMADILLO__
 	template<class T, class Property, class A, template<class, class>class C>

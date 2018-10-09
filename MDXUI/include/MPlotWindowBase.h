@@ -218,9 +218,17 @@ public:
 	void		OnDealSelectedChanged(int curindex, int preindex, CDxWidget* sender);
 	void		OnRendWindow(IPainterInterface* painter);
 
+	void		LeftMoveMarker(const MString& Name);
+	void		RightMoveMarker(const MString& Name);
+
+	TL::Vector<double> GetValuesFromX(double x);
+
+
 msignals:
 	void		SelectedChanged(MString cur, MString pre, CDxWidget* sender);
+	void		MarkerPositionChanged(MString Name, double x, double y, CDxWidget*);
 	TL::MTLVoidEvent<MString, MString, CDxWidget*> Event_SelectedChanged;
+	TL::MTLVoidEvent<MString, double, double, CDxWidget*> Event_MarkerPositionChanged; // maker 移动时触发事件
 
 
 
