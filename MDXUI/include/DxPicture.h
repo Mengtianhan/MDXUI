@@ -45,6 +45,7 @@ namespace DxUI{
 		void PushPictureFile(const MString& FileName);
 		void PopPicture();
 		void ShowByFileName(const MString& FileName);
+		void ShowByKeyWords(const MString& KeyWords);
 		void ShowByIndex(unsigned index);
 		bool	OnNotify(DXNotifyUI* NotifyEvent);
 		MString GetPicFileNameByIndex(unsigned index) const;
