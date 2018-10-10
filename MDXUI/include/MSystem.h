@@ -100,6 +100,12 @@ public:
     //
     static bool UnRegister(HKEY syskey,const MString& useKey);
 
+
+
+	//
+	// 检查网络是否能够ping通
+	//
+	static bool NetStatusIsOk(const MString& ip,int timeout = 1000);
 private:
     static MSystem*                                     pSystemSelf;
     static bool                                         bInstanceIsThis;
