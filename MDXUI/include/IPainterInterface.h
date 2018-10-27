@@ -211,6 +211,11 @@ namespace DxUI{
 
 
 		//
+		// 附带一个处理函数进行数据处理，返回一个颜色值
+		//
+		virtual void	DrawLines(const std::vector<DxPointD>& points, const DxColor& col, double Size,std::function<DxColor(const DxPointD&,const DxPointD&)> DealFun) = 0;
+
+		//
 		// 在曲线的顶点位置使用实心圆点或者使用×标记出来
 		//
 		virtual void	DrawLinesForPoint(const std::vector<DxPointD>& points, const DxColor& col, double Size) = 0;

@@ -39,10 +39,19 @@ namespace DxUI{
 	public:
 		CDxNoCaptionPopWindow();
 		~CDxNoCaptionPopWindow();
+		void	SetTransparent();
+		void	SetTransparentColor(const DxColor& col);
+		DxColor GetTransparentColor() const;
+		void	SetDurationTime(int times);
+		void	OnTimer();
 		void	CreateHwnd(HWND parent);
+		void	Show();
 		LRESULT	OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 		void	OnRender2D();
 		void	OnRendWindow(IPainterInterface* painter);
+	protected:
+		DxColor	mTransparentColor;
+		int		mDurationTime{ -1 };
 	};
 }
 

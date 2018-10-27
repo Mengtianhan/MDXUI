@@ -80,6 +80,7 @@ public:
 // 仅仅只是绘制而已附加marker功能
 // 需要强大的功能需要自己子类化
 // 针对曲线的快捷键操作如下
+// Ctrl + 鼠标框选局部放大
 // Ctrl + F1 隐藏图例
 // F1  显示图例
 // Delete 删除当前选中 如果选中的是mark 删除mark 如果选中的是曲线 删除曲线
@@ -115,6 +116,11 @@ public:
 	void		PlotLine(const MString& Name, const TL::Vector<double>& y, const DxColor& col = RgbI(0, 255, 0), int size = 1);
 	void		PlotLine(const MString& Name, const TL::Vector<DxPointD>& y, const DxColor& col = RgbI(0, 255, 0), int size = 1);
 
+	//
+	// 添加竖线
+	//
+	void		PlotVerticalLine(const MString& Name, double x, const DxColor& col = RgbI(0, 255, 0), int size = 1);
+
 
 	//
 	// 在指定曲线后面追加数据
@@ -139,8 +145,10 @@ public:
 
 	void		RemoveMarker(const MString& Name);
 	void		RemoveCurve(const MString& Name);
+	void		RemoveVerticalCurve(const MString& Name);
 	MCurve*		GetCurve(const MString& Name);
 	MMarker*	GetMarker(const MString& Name);
+	double		GetVerticalPos(const MString& Name);
 
 	bool		CurveIsExist(const MString&  Name);
 
@@ -207,6 +215,11 @@ public:
 	const MPlotTitle* GetHTitle() const;
 	const MPlotTitle* GetVTitle() const;
 
+	void		SetPlotAreaSizeBox(const RECT& sizeBox);
+	void		SetShowMarkerLineEnabel(bool isEnabel);
+	void		SetMarkerLineColor(const DxColor& col);
+	void		SetMarkerLineIsCross(bool isCross);
+
 
 	TL::Map<MString, MCurve> GetAllCurves() const;
 	TL::Map<MString, MMarker> GetAllMarkers() const;
@@ -226,9 +239,11 @@ public:
 
 msignals:
 	void		SelectedChanged(MString cur, MString pre, CDxWidget* sender);
-	void		MarkerPositionChanged(MString Name, double x, double y, CDxWidget*);
+	void		MarkerPositionChanged(MString Name, double x, double y, CDxWidget* sender);
+	void		VerticalLineMove(MString Name, double x,  CDxWidget* sender);
 	TL::MTLVoidEvent<MString, MString, CDxWidget*> Event_SelectedChanged;
 	TL::MTLVoidEvent<MString, double, double, CDxWidget*> Event_MarkerPositionChanged; // maker 移动时触发事件
+	TL::MTLVoidEvent<MString, double, CDxWidget*>	Event_VerticalLineMove;
 
 
 
@@ -242,6 +257,7 @@ protected:
 	virtual void		OnDealTranslateDequeScale();
 	virtual void		OnDealPoint(int x, int y);
 	virtual void		OnDealMarker(int x, int y);
+	virtual bool		OnDealVerticalLine(int x, int y);
 
 
 protected:
@@ -258,6 +274,8 @@ protected:
 	std::map<MString, DxColor>			  mMarkPointColorMap;// 高亮顶点的颜色
 	std::map<MString, bool>				  mNotNeedLineCurvMap; // 不需要绘制线条，只需要绘制出顶点即可
 	std::map<MString, bool>				  mStripLineMap;  // 绘制垂直竖线
+	std::map<MString, MCurve>			  mVerticalLinesMap; // 绘制一些数线条
+
 	MPlotTitle					mTitle;
 	MPlotTitle					mHTitle;
 	MPlotTitle					mVTitle;
@@ -293,6 +311,8 @@ protected:
 	bool						bIsTranslate{ false };
 	bool						bIsClicked{ false };
 	bool						bIsMarkPoint{ false };// 将顶点标记出来
+	bool						bIsShowMarkerLine{ false }; // 显示标线
+	bool						bIsCrossShowMarkerLine{ false };
 	POINT						mMousePt;
 	POINT						mClickedPt;
 	POINT						mPrePt;
@@ -302,6 +322,7 @@ protected:
 	int							mSelectedSize{ 3 };
 	MString						mSelectedCurve;
 	MString						mSelectedMarkter;
+	MString						mSelectedVerticalLine;
 	DxColor						mSelectedMarkerColor;
 	DxColor						mMarkerOldColor;
 	CDxFloatWindow*				mLengedWindow;
@@ -312,6 +333,11 @@ protected:
 	bool						bIsShowAdditionText{ true };
 	MString						m_AdditionTextInformation;  // 附加的一些显示信息
 	DxColor						m_AdditionAreaColor;
+	DxColor						m_MarkerLineColor;
 	DxUI::CDxEffects			m_AdditionTextEffect;
+
+	RECT						m_PlotAreaSizeBox;
+
+	DxUI::CDxPopWindow*			p_HelpPopWindow{ nullptr };
 };
 

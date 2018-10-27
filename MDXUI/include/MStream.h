@@ -26,6 +26,7 @@
 
 #pragma once
 #include "MLoggerStream.h"
+#include <MTLEvent.h>
 
 class MAppManager;
 
@@ -42,9 +43,7 @@ public:
 	static MLoggerStream& Log();
     template<class T>
     MStream& operator<<(const T& val){
-		if (mHookFun){
-			mHookFun(val);
-		}
+		mHookFun(val);
 		Log()<< val;
 		ToLogFile(val);
         return *this;
@@ -55,9 +54,7 @@ public:
         try{
             MString::setFloatPrecision(6);
 			MString str = MString::Format(sig, value, args...);
-			if (mHookFun){
-				mHookFun(str);
-			}
+			mHookFun(str);
 			Log() << str;
 			ToLogFile(str);
             MString::setFloatPrecision(3);
@@ -91,7 +88,7 @@ public:
 private:
 	void ToLogFile(const MString& str);
     static MLoggerStream   mStreamObj;
-	static HookFunType	   mHookFun;
+	static TL::MTLVoidEvent<MString>   mHookFun;
 	static std::ofstream   mLogStream;
 };
 

@@ -25,15 +25,24 @@
 
 
 #pragma once
+#include <WinMain.hpp>
 #include <Windows.h>
 #include <MSingleton.h>
 #include "MString.h"
 #include "DxConfig.h"
 #include <condition_variable>
 #include <map>
+#include <MTLSlotEx.h>
+#include <MMultType.h>
+#include <MTLEvent.h>
+
 using mj::MString;
 class IFactoryInterface;
 
+namespace TL{
+	template<class...Args>
+	class MTLAsyncVoidEvent;
+}
 
 namespace DxUI{
 	class IWindow;
@@ -107,6 +116,58 @@ namespace DxUI{
 		static HWND GetActiveHWND();
 
 
+		//
+		// 跨线程时如果想要将参数传递到主线程中可以使用该接口
+		// 注意参数传递过程的有效性
+		//
+		static void PostMainThread(ulong message, ulong wParam, ulong lParam);
+
+		//
+		// 在其他线程中如果想要在主线程中执行函数时可以使用下面的接口
+		//
+		static void AsyncRunFunction(std::function<void()> Fun);
+		static void AsyncRunFunction(void(*Fun)(TL::MTLObject*),TL::MTLObject* Obj);
+
+
+		//
+		// Args 最前最多支持4个
+		//
+		template<class T,class...Args>
+		static void AsyncRunFunction(void(*fun)(T, Args...), const T& val, const Args&...args){
+			std::function<void()> Fun = TL2::MSLOT(fun, val, args...);
+			AsyncRunFunction(Fun);
+		}
+
+		template<class T, class...Args>
+		static void AsyncRunFunction(void(T::*fun)(Args...), T* obj, const Args&...args){
+			std::function<void()> Fun = TL2::MSLOT(fun, obj, args...);
+			AsyncRunFunction(Fun);
+		}
+
+		template<class T>
+		static void AsyncRunFunction(void(T::*fun)(), T* obj){
+			std::function<void()> Fun = TL::MSLOT(fun, obj);
+			AsyncRunFunction(Fun);
+		}
+
+		template<class...Args>
+		static void AsyncRunFunction(TL::MTLAsyncVoidEvent<Args...>& obj, const Args&...args){
+			typedef TL::MTLAsyncVoidEvent<Args...> Type;
+			Type* Ptr = &obj;
+			AsyncRunFunction(&Type::Run, Ptr, args...);
+		}
+
+
+	
+		//
+		// 如果不知道如何使用的时候就最好不要使用
+		//
+		static void RunQueryFunction(MSG msg);
+
+		static void SetAppHintSize(const MString& FileName);
+		static SIZE GetAppHintSize(const MString& ClassName);
+
+
 
 		//
 		// 消息循环
@@ -115,8 +176,23 @@ namespace DxUI{
 		int					 Run();
 
 
+		//
+		// 保存主窗口句柄
+		//
+		void				SaveMainHwnd(HWND hwnd);
+		HWND				GetMainHwnd() const;
+
+	msignals:
+		//
+		// 自定义事件传递出来
+		// 参数分别是 message,wParam,lParam
+		//
+		static TL::MTLVoidEvent<ulong, ulong, ulong>  Event_Message;
+
+
 	private:
 		bool				bIsDone{ false };
+		HWND				mMainHwnd{ nullptr };
 		static HINSTANCE	hInstance;
 		static DXFontInfo	sDefaultFontInfo;
 		static HFONT		sDefaultFont;
@@ -124,12 +200,43 @@ namespace DxUI{
 	private:
 		static std::map<MString, CreateInstanceFun> mModuleFuns;
 		static std::map<MString, CreateFactoryFun>  mFactoryFuns;
-
+		static std::map<MString, SIZE>   s_ControlHintSize;
 	protected:
 		static CDxApplication*	 __sPtr;
 		static unsigned  mMainThreadID;
 		static std::condition_variable	s_AppCondition;
 		static HWND     m_ActiveHwnd;
+		
 	};
+
 }
 
+
+namespace TL{
+	//
+	// 使用operator()操作符让连接函数永远在主线程中执行
+	//
+	template<class...Args>
+	class MTLAsyncVoidEvent : public MTLVoidEvent<Args...>{
+	public:
+		MTLAsyncVoidEvent(){}
+		virtual ~MTLAsyncVoidEvent(){}
+
+		void operator()(const Args&... arg){
+			AsynRun(arg...);
+		}
+
+		void Run(Args... arg){
+			MTLVoidEvent<Args...>::operator()(arg...);
+		}
+
+		void AsynRun(const Args&... arg){
+			if (DxUI::CDxApplication::MainThreadID() == DxUI::CDxApplication::CurrentThreadID()){
+				Run(arg...);
+			}
+			else{
+				DxUI::CDxApplication::AsyncRunFunction(&MTLAsyncVoidEvent::Run, this, arg...);
+			}
+		}
+	};
+}

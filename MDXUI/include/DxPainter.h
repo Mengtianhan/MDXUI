@@ -130,6 +130,7 @@ namespace DxUI{
 		void	DrawDashLine(const DxPointD& first, const DxPointD& second, const DxColor& col, double Size);
 		void	DrawDashLines(const std::vector<DxPointD>& points, const DxColor& col, double Size);
 
+		void	DrawLines(const std::vector<DxPointD>& points, const DxColor& col, double Size, std::function<DxColor(const DxPointD&, const DxPointD&)> DealFun);
 
 		void	DrawLinesForPoint(const std::vector<DxPointD>& points, const DxColor& col, double Size);
 		void	DrawLinesForCross(const std::vector<DxPointD>& points, const DxColor& col, double Size);

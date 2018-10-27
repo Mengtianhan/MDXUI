@@ -26,7 +26,6 @@
 #pragma once
 #include <Windows.h>
 #include "DxConfig.h"
-#include "resource.h"
 #include <MTLEvent.h>
 
 namespace DxUI{

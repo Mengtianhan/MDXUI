@@ -39,6 +39,7 @@ namespace DxUI{
 		public CDxCheckBox
 	{
 		friend class CDxMenu;
+		friend class CDxMenuForBar;
 		DECLARE_CLASS(CDxAction)
 	public:
 		CDxAction();

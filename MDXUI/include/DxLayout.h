@@ -48,6 +48,7 @@ namespace DxUI{
 		DXWindowType GetWindowSelfDesc() const;
 		CDxWidget*	FindWindowFromId(int id);
 		CDxWidget*	HitTest(int x, int y);  // 点击测试，通过一个点查找到相应的控件
+		CDxWidget*	GetWidget(int row, int col);
 		bool		PointInArea(int x, int y);
 		void		AddWidget(CDxWidget* window, int row, int col, int rowspan, int colspan, DXAlignment alignment = Dx_AlignNormal);
 		void		SetSpan(int index, int span);
@@ -62,6 +63,7 @@ namespace DxUI{
 		bool		OnNotify(DXNotifyUI* NotifyEvent);
 		void		OnRendWindow(IPainterInterface* painter);
 		void		OnIdle();
+		void		SetEraseColorForChildren(const DxColor& col);
 
 	protected:
 		

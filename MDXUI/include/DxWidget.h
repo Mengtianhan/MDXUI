@@ -224,6 +224,7 @@ namespace DxUI{
 		virtual void	SetFixWidth(int w);
 		virtual void	SetFixHeight(int h);
 		virtual void	SetFixSize(int w, int h);
+		virtual void	SetHintSize(SIZE size);
 		virtual int		GetFixWidth() const;
 		virtual int		GetFixHeight() const;
 		virtual SIZE	GetHintSize() const;
@@ -283,6 +284,7 @@ namespace DxUI{
 		virtual void	SetInvalidateRect(const DxRectI& rc);
 		virtual DxRectI	GetInvalidateRect() const;
 		virtual void	SetEraseColor(const DxColor& col);
+		virtual void	SetEraseColorForChildren(const DxColor& col);
 		virtual DxColor GetEraseColor() const;
 		virtual void	SetClipRect(const DxRectI& rect);
 		virtual DxRectI& GetClipRect();
@@ -481,6 +483,7 @@ namespace DxUI{
 		RECT					mPadding;
 		DxRectI					mOldClipRect;
 		DxRectI					mClipRect;// ≤√ºÙ«¯”Ú
+		SIZE					mHintSize;
 
 		double					mAspect{ 1.0 };
 		bool					bIsUseRelativCoord{ false };

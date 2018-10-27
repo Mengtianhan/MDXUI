@@ -36,6 +36,8 @@ namespace DxUI{
 //
 //  IPluginInterface
 //  插件接口
+//  CreatePluginInterface 导出函数名为
+//  IPluginInterface*(*CreatePluginFun)()
 //
 //+------------------------------
 struct IPluginInterface{

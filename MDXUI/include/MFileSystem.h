@@ -38,6 +38,7 @@ extern "C" namespace MFileSystem{
 	MSTRING_API size_t MCopyFiles(const MString& from_dir, const MString& to_dir, const MString& filename = "*"); // 拷贝文件到另一个目录
 
 	MSTRING_API size_t MRemoveFiles(const MString& dir, const MString& filename = "*"); // 移除文件
+	MSTRING_API size_t MRemoveFile(const MString& filename);
 	MSTRING_API size_t MRemoveDir(const MString& dir); // 移除文件夹
 	MSTRING_API bool MFileIsExist(const MString& filename); // 文件是否存在
 	MSTRING_API bool MFolderIsExist(const MString& folderpath); // 文件夹是否存在
@@ -70,6 +71,11 @@ extern "C" namespace MFileSystem{
 		const MString& place_str = "", const MString& end = "#End#");  // 替换一个文件中的内容，开始出，替换成XX,被替换的结尾处，"#End#"表示替换到尾
 
 	MSTRING_API MString MCurrentTime();  // 获取当前系统时间 YYYY/MM/DD HH:MM:SS
+	MSTRING_API MString MCurrentTime2(const char* Format = "%02d:%02d:%02d");  // 获取当前系统时间 HH:MM:SS
+	MSTRING_API MString MCurrentData(const char* Format = "%4d/%02d/%02d");  // 获取当前系统时间 YYYY/MM/DD
+
+	MSTRING_API tm MFileLastTime(const MString& filename);
+
 
 	MSTRING_API MString  wtoc(const wchar_t* str); //宽字节到多字节的转换
 	MSTRING_API std::wstring stow(const char* src);//多字节到宽字节的转换

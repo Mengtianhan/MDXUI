@@ -41,6 +41,9 @@
 #include <IAlgForPlotInterface.h>
 
 
+namespace DxUI{
+	class CDxCheckBox;
+}
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -203,6 +206,85 @@ namespace MPlotAlg {
 		DxUI::CDxWidget* ParamSetWindow();
 		virtual MString Describe() const{ return "RMS"; }
 		virtual IAlgForPlotInterace* Clone(){ return new AlgRMS; }
+		virtual void Init(){}
+		virtual void Exec(const TL::Vector<double>& xs, const TL::Vector<double>& ys);
+	private:
+		DxUI::CDxWidget* p_ParamWindow{ nullptr };
+	};
+
+
+	///////////////////////////////////////////////////////////////////////////
+	//
+	// 计算平均值
+	//
+	//////////////////////////////////////////////////////////////////////////
+	class MPLOT_API AlgAVG : public IAlgForPlotInterace
+	{
+	public:
+		AlgAVG();
+		DxUI::CDxWidget* ParamSetWindow();
+		virtual MString Describe() const{ return L"平均值"; }
+		virtual IAlgForPlotInterace* Clone(){ return new AlgAVG; }
+		virtual void Init(){}
+		virtual void Exec(const TL::Vector<double>& xs, const TL::Vector<double>& ys);
+	private:
+		DxUI::CDxWidget* p_ParamWindow{ nullptr };
+	};
+
+
+	///////////////////////////////////////////////////////////////////////////
+	//
+	// 计算平方差
+	//
+	//////////////////////////////////////////////////////////////////////////
+	class MPLOT_API AlgVariance : public IAlgForPlotInterace
+	{
+	public:
+		AlgVariance();
+		DxUI::CDxWidget* ParamSetWindow();
+		virtual MString Describe() const{ return L"方差"; }
+		virtual IAlgForPlotInterace* Clone(){ return new AlgVariance; }
+		virtual void Init(){}
+		virtual void Exec(const TL::Vector<double>& xs, const TL::Vector<double>& ys);
+	private:
+		DxUI::CDxWidget* p_ParamWindow{ nullptr };
+		DxUI::CDxSpinBox* p_AvgBox{ nullptr };
+		DxUI::CDxCheckBox* p_CheckBox{ nullptr };
+	};
+
+
+	///////////////////////////////////////////////////////////////////////////
+	//
+	// 计算标准差
+	//
+	//////////////////////////////////////////////////////////////////////////
+	class MPLOT_API AlgStanderVariance : public IAlgForPlotInterace
+	{
+	public:
+		AlgStanderVariance();
+		DxUI::CDxWidget* ParamSetWindow();
+		virtual MString Describe() const{ return L"标准差"; }
+		virtual IAlgForPlotInterace* Clone(){ return new AlgStanderVariance; }
+		virtual void Init(){}
+		virtual void Exec(const TL::Vector<double>& xs, const TL::Vector<double>& ys);
+	private:
+		DxUI::CDxWidget* p_ParamWindow{ nullptr };
+		DxUI::CDxSpinBox* p_AvgBox{ nullptr };
+		DxUI::CDxCheckBox* p_CheckBox{ nullptr };
+	};
+
+	///////////////////////////////////////////////////////////////////////////
+	//
+	// 计算和
+	//
+	//////////////////////////////////////////////////////////////////////////
+	class MPLOT_API AlgSum : public IAlgForPlotInterace
+	{
+	public:
+		AlgSum();
+		DxUI::CDxWidget* ParamSetWindow();
+		virtual MString Describe() const{ return "SUM"; }
+		virtual IAlgForPlotInterace* Clone(){ return new AlgSum; }
 		virtual void Init(){}
 		virtual void Exec(const TL::Vector<double>& xs, const TL::Vector<double>& ys);
 	private:

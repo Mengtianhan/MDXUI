@@ -90,7 +90,9 @@ namespace DxUI{
 		//
 		// 窗口显示和隐藏的通知事件
 		//
+	msignals:
 		void				    OnShowEvent(bool isShow, CDxWidget* sender);
+		TL::MTLVoidEvent<bool, CDxWidget*> Event_OnShowEvent;
 	protected:
 
 		int									 mIdentifyId{ DX_InvalidID };

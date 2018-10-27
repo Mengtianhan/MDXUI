@@ -57,6 +57,7 @@ namespace DxUI{
 		virtual CDxWidget*  GetParent();
 		virtual CDxWidget*  GetDialogParent();
 		virtual int			Exec();
+		int					AsyncExec(); // 在非GUI线程中想要启动对话框那么就应该使用该接口
 
 		//
 		// 退出对话框

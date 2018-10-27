@@ -45,8 +45,9 @@ namespace DxUI{
 		//
 		// 开始 单位ms
 		//
+		void CreateHwnd(HWND parent);
 		bool IsStarted() const;
-		void StartAnimation(int timeinter = 300);
+		void StartAnimation(int timeinter = 20);
 		void StopAnimation();
 		void OnTimer();
 		void OnRendWindow(IPainterInterface*  painter);
@@ -70,6 +71,7 @@ namespace DxUI{
 	private:
 		std::shared_ptr<ITimer> mTimer;//计时器
 		bool		bIsStart{ false };
+		int			mIntervalTime{ 20 };
 	};
 }
 

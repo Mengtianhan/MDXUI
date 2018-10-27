@@ -207,8 +207,42 @@ namespace DxUI{
 		//
 		// 矩阵旋转 dim = 0是行旋转 1 列旋转 3 纵横旋转
 		//
-		static mj::dmat shift(const mj::dmat& m, int dim = 0);
-		static mj::cx_dmat shift(const mj::cx_dmat& m, int dim = 0);
+
+		static mj::dmat ifftshift(const mj::dmat& m, int dim = 0);
+		static mj::cx_dmat ifftshift(const mj::cx_dmat& m, int dim = 0);
+
+
+		//
+		// 矩阵旋转 dim = 0是行旋转 1 列旋转
+		//
+		static mj::dmat shift(const mj::dmat& m, int N,int dim = 0);
+		static mj::cx_dmat shift(const mj::cx_dmat& m, int N,int dim = 0);
+
+		static TL::Vector<double> shift(const TL::Vector<double>& m, int N);
+		static TL::Vector<std::complex<double>> shift(const TL::Vector<std::complex<double>>& m, int N);
+
+
+		//
+		// fliplr(): generate a copy of matrix X, with the order of the columns reversed 
+		// flipud(): generate a copy of matrix X, with the order of the rows reversed 
+		//
+		static mj::dmat fliplr(const mj::dmat& m);
+		static mj::cx_dmat fliplr(const mj::cx_dmat& m);
+		static mj::dmat flipud(const mj::dmat& m);
+		static mj::cx_dmat flipud(const mj::cx_dmat& m);
+
+
+		//
+		// 生成一个线性列表
+		//
+		static TL::Vector<double> linspace(double start, double end, int N);
+
+
+		//
+		// 检查矩阵中是否有无效数据
+		//
+		static bool has_inf(const mj::dmat& m);
+		static bool has_nan(const mj::dmat& m);
 
 
 		//

@@ -44,15 +44,20 @@ namespace DxUI{
 		~CDxMenu();
 		DXWindowType	GetWindowSelfDesc() const;
 		HWND			GetRootHwnd() const;
-		CDxAction*		AddAction(const MString& Icon, const MString& Text);
-		CDxAction*		AddAction(const MString& Text);
-		CDxAction*		AddCheckableAction(const MString& Text);
 
-		void			AddSpliter();
 
-		CDxMenu*		AddMenu(const MString& Icon, const MString& Text);
-		CDxMenu*		AddMenu(const MString& Text);
+		virtual CDxAction*		AddAction(const MString& Icon, const MString& Text);
+		virtual CDxAction*		AddAction(const MString& Text);
+		virtual CDxAction*		AddCheckableAction(const MString& Text);
 
+		virtual void			AddSpliter();
+
+		virtual CDxMenu*	AddMenu(const MString& Icon, const MString& Text);
+		virtual CDxMenu*	AddMenu(const MString& Text);
+
+
+		CDxAction*		GetAction(const MString& Name) const;
+		CDxMenu*		GetMenu(const MString& Name) const;
 
 		void			SetGeomety(const DxRectI& rc);
 		void			SetSize(int w, int h);
@@ -71,13 +76,17 @@ namespace DxUI{
 		int				Exec();
 		void			SetVisible(bool isVisible);
 		void			Exec(int x, int y);
+
+	msignals:
+		void			Clicked(bool isClicked, CDxWidget* sender);
+		TL::MTLVoidEvent<bool, CDxWidget*> Event_Clicked;
+
+
 	protected:
 		void			UpdateChildWindowPos();
 
-	private:
 		TL::Vector<CDxAction*>	mActions;
-		TL::Vector<CDxMenu*>	mMenus;
-		
+		TL::Vector<CDxMenu*>	mMenus;	
 	};
 }
 

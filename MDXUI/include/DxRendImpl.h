@@ -137,10 +137,12 @@ namespace DxUI{
 		virtual ID2D1HwndRenderTarget*	GetRenderTarget();
 		
 
+	msignals:
 		//
 		// 窗口状态改变时发送该事件
 		//
 		void					OnWindowStatusChanged(DXWindowStatus status,CDxWidget* sender);
+		TL::MTLVoidEvent<DXWindowStatus, CDxWidget*> Event_WindowStatusChanged;
 
 	protected:
 		void					ClearWndRelatedResource();

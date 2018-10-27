@@ -46,7 +46,7 @@ namespace DxUI{
 		void		SetGeomety(const DxRectI& rc);
 		void		SetPosition(int x, int y);
 		void		SetSize(int w, int h);
-
+		void		SetHeaderHeight(int h);
 		void		AddTab(const MString& Title, CDxWidget* window);
 		void		AddTab(const MString& Icon, const MString& Title, CDxWidget* window);
 		void		RemoveTab(int index);
