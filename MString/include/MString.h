@@ -533,7 +533,12 @@ namespace mj{
 		template<class iter>
 		MString(iter beg, iter end){
 			int len = std::distance(beg, end);
-			Init(&(*beg), len);
+			if (len == 0){
+				Init("", 0);
+			}
+			else{
+				Init(&(*beg), len);
+			}
 		}
 
 		template<>
@@ -576,6 +581,9 @@ namespace mj{
 			s.precision(sFloatPrecision);
 			if (!(s << value).fail()){
 				Init(s.str().c_str());
+			}
+			else{
+				Init("");
 			}
 		}
 

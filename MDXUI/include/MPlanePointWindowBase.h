@@ -64,6 +64,7 @@ public:
 		int m_id;
 		double m_x;  // x Öá×ø±ê
 		double m_y;  // y Öá×ø±ê
+		double m_z{ 0.0 };  // z 
 		double m_val{ mj::InfinityDF };// Öµ
 	};
 

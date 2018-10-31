@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef MUINT64
+#ifndef _WIN64
 #ifndef uint64
 typedef unsigned __int32 uint64;
 #endif

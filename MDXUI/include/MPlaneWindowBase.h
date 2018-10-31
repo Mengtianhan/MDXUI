@@ -65,6 +65,8 @@ public:
 	struct PlaneDataType{
 		TL::Vector<double> mXs;
 		TL::Vector<double> mYs;
+		TL::Vector<__int16> mXIndexs;
+		TL::Vector<__int16> mYIndexs;
 	};
 	typedef TL::MSNoSqlDB<double, double, double, double> ScaleTranslateType;
 	
