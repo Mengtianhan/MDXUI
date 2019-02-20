@@ -169,8 +169,8 @@ show()
 ```
 ![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/13.PNG)
 
-### MDXUI和OpenCV对接
-将opencv文件夹下面的.h和.cpp架子进工程——为了减少依赖，这两个文件直接以源码的方式提供
+### MDXUI对OpenCV的支持
+将opencv文件夹下面的.h和.cpp架子进工程——为了减少依赖，这两个文件直接以源码的方式提供，由于作者本人对opencv并未研究过，只对cv::Mat进行了一些简单的查看，所以提供的解决方案是基于cv::Mat,未必是最好的。
 ```
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui.hpp>
@@ -256,8 +256,11 @@ int main(int argc, char* argv[])
 }
 ```
 ![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/13.PNG)
+
 ![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/14.PNG)
+
 ![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/15.PNG)
+
 如果电脑有摄像头，可以点击按钮摄像头打开摄像头看看效果。
 
 
