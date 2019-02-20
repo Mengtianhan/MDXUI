@@ -127,7 +127,7 @@ protected:
 	virtual void		OnDealTranslateDequeScale();
 	virtual void		OnUpdateBitmap();
 	virtual void		OnDataChanged(){};
-
+	void				UnInitResource();
 
 protected:
 	std::map<MString, MPlane>		mPlaneDatas; // 原始数据
@@ -173,5 +173,6 @@ protected:
 	POINT						mClickedPt;
 	POINT						mPrePt;
 	DxUI::DxRectD				mBoundRect;
+	DxUI::CDxEffects			m_HelpEffects;
 };
 

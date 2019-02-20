@@ -393,7 +393,7 @@ public:
 	MTypeWrap(const std::vector<U>& other);
 
 	template<class U,class A2,template<class,class>class C2>
-        MTypeWrap(const C2<U, A2>& other);
+    MTypeWrap(const C2<U, A2>& other);
 
 	template<class U, class A2>
 	MTypeWrap(const MTypeWrap<C<U, A2>, AllocatorType>& other);
@@ -998,22 +998,22 @@ public:
 	//
 	// 计算标准差
 	//
-	double standard_deviation() const;
-	double standard_deviation(double val) const;
+	T standard_deviation() const;
+	T standard_deviation(double val) const;
 	template<class cmp = std::equal_to<T>>
-	double standard_deviation(const_value_reference_type excepty, cmp prd = cmp()) const;
+	T standard_deviation(const_value_reference_type excepty, cmp prd = cmp()) const;
 	template<class cmp = std::equal_to<T>>
-	double standard_deviation(double val, const_value_reference_type excepty, cmp prd = cmp()) const;
+	T standard_deviation(double val, const_value_reference_type excepty, cmp prd = cmp()) const;
 
 	//
 	// 计算方差
 	//
-	double square_deviation() const;
-	double square_deviation(double val) const;
+	T square_deviation() const;
+	T square_deviation(double val) const;
 	template<class cmp = std::equal_to<T>>
-	double square_deviation(const_value_reference_type excepty, cmp prd = cmp()) const;
+	T square_deviation(const_value_reference_type excepty, cmp prd = cmp()) const;
 	template<class cmp = std::equal_to<T>>
-	double square_deviation(double val, const_value_reference_type excepty, cmp prd = cmp()) const;
+	T square_deviation(double val, const_value_reference_type excepty, cmp prd = cmp()) const;
 
 	//
 	// 按照给定条件计算总和
@@ -3120,7 +3120,7 @@ void MTypeWrap< C<T, A>, AllocatorType>::istream(std::istream& is){
 		if (str.empty()){
 			continue;
 		}
-		static mj::MString mstr;
+		mj::MString mstr;
 		mstr = str;
 		if (mstr.istart_with("Number")){
 			int num = 0;
@@ -3421,7 +3421,7 @@ typename MTypeWrap< C<T, A>, AllocatorType>::const_iterator MTypeWrap< C<T, A>, 
 //
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
 T MTypeWrap< C<T, A>, AllocatorType>::aval_value() const{
-	T sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), 0);
+	T sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), T(0.0));
 	return sum / this->size();
 }
 
@@ -3434,7 +3434,7 @@ T MTypeWrap< C<T, A>, AllocatorType>::aval_value(typename MTypeWrap< C<T, A>, Al
 		return T();
 
 	vals.erase(std::remove_if(vals.begin(), vals.end(), [&](T v){return prd(v, excepty); }));
-	T sum = std::accumulate(vals.begin(), vals.end(), 0);
+	T sum = std::accumulate(vals.begin(), vals.end(), T(0.0));
 	return sum_value(excepty, prd) / vals.size();
 }
 
@@ -3443,7 +3443,7 @@ T MTypeWrap< C<T, A>, AllocatorType>::aval_value(typename MTypeWrap< C<T, A>, Al
 //
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
 T MTypeWrap< C<T, A>, AllocatorType>::sum_value() const{
-	T sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), 0);
+	T sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), T(0.0));
 	return sum;
 }
 
@@ -3456,7 +3456,7 @@ T MTypeWrap< C<T, A>, AllocatorType>::sum_value(typename MTypeWrap< C<T, A>, All
 		return T();
 
 	vals.erase(std::remove_if(vals.begin(), vals.end(), [&](T v){return prd(v, excepty); }));
-	T sum = std::accumulate(vals.begin(), vals.end(), 0);
+	T sum = std::accumulate(vals.begin(), vals.end(), T(0.0));
 	return sum;
 }
 
@@ -3613,57 +3613,57 @@ typename MTypeWrap< C<T, A>, AllocatorType>::Type MTypeWrap< C<T, A>, AllocatorT
 // 计算标准差
 //
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
-double MTypeWrap< C<T, A>, AllocatorType>::standard_deviation() const{
-	double val = this->aval_value();
-	double sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), 0, [&](double v1, T v){
+T MTypeWrap< C<T, A>, AllocatorType>::standard_deviation() const{
+	T val = this->aval_value();
+	T sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), T(0.0), [&](T v1, T v){
 		return v1 + (v - val)*(v - val);
 	});
-	double diff = std::sqrt(sum / mVal->mVal.size());
+	T diff = std::sqrt(sum / mVal->mVal.size());
 	return diff;
 }
 
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
-double MTypeWrap< C<T, A>, AllocatorType>::standard_deviation(double val) const{
-	double sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), 0, [&](double v1, T v){
+T MTypeWrap< C<T, A>, AllocatorType>::standard_deviation(double val) const{
+	T sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), T(0.0), [&](T v1, T v){
 		return v1 + (v - val)*(v - val);
 	});
-	double diff = std::sqrt(sum / mVal->mVal.size());
+	T diff = std::sqrt(sum / mVal->mVal.size());
 	return diff;
 }
 
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
 template<class cmp>
-double MTypeWrap< C<T, A>, AllocatorType>::standard_deviation(typename MTypeWrap< C<T, A>, AllocatorType>::const_value_reference_type excepty, cmp prd) const{
+T MTypeWrap< C<T, A>, AllocatorType>::standard_deviation(typename MTypeWrap< C<T, A>, AllocatorType>::const_value_reference_type excepty, cmp prd) const{
 	std::vector<T> vals;
 	this->convert_type(vals);
 	if (vals.empty())
-		return 0.0;
+		return T();
 
 	vals.erase(std::remove_if(vals.begin(), vals.end(), [&](T v){return prd(v, excepty); }));
-	T sum = std::accumulate(vals.begin(), vals.end(), 0);
+	T sum = std::accumulate(vals.begin(), vals.end(), T(0.0));
 	T val = sum / vals.size();
-	sum = std::accumulate(vals.begin(), vals.end(), 0, [&](double v1, T v){
+	sum = std::accumulate(vals.begin(), vals.end(), T(0.0), [&](T v1, T v){
 		return v1 + (v - val)*(v - val);
 	});
-	double diff = std::sqrt(sum / vals.size());
+	T diff = std::sqrt(sum / vals.size());
 	return diff;
 }
 
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
 template<class cmp>
-double MTypeWrap< C<T, A>, AllocatorType>::standard_deviation(double val,
+T MTypeWrap< C<T, A>, AllocatorType>::standard_deviation(double val,
 	typename MTypeWrap< C<T, A>, AllocatorType>::const_value_reference_type excepty, cmp prd) const
 {
 	std::vector<T> vals;
 	this->convert_type(vals);
 	if (vals.empty())
-		return 0.0;
+		return T();
 
 	vals.erase(std::remove_if(vals.begin(), vals.end(), [&](T v){return prd(v, excepty); }));
-	T sum = std::accumulate(vals.begin(), vals.end(), 0, [&](double v1, T v){
+	T sum = std::accumulate(vals.begin(), vals.end(), T(0.0), [&](T v1, T v){
 		return v1 + (v - val)*(v - val);
 	});
-	double diff = std::sqrt(sum / vals.size());
+	T diff = std::sqrt(sum / vals.size());
 	return diff;
 }
 
@@ -3671,17 +3671,17 @@ double MTypeWrap< C<T, A>, AllocatorType>::standard_deviation(double val,
 // 计算方差
 //
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
-double MTypeWrap< C<T, A>, AllocatorType>::square_deviation() const{
-	double val = this->aval_value();
-	double sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), 0, [&](double v1, T v){
+T MTypeWrap< C<T, A>, AllocatorType>::square_deviation() const{
+	T val = this->aval_value();
+	T sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), T(0.0), [&](T v1, T v){
 		return v1 + (v - val)*(v - val);
 	});
 	return sum / mVal->mVal.size();
 }
 
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
-double MTypeWrap< C<T, A>, AllocatorType>::square_deviation(double val) const{
-	double sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), 0, [&](double v1, T v){
+T MTypeWrap< C<T, A>, AllocatorType>::square_deviation(double val) const{
+	T sum = std::accumulate(mVal->mVal.begin(), mVal->mVal.end(), T(0.0), [&](double v1, T v){
 		return v1 + (v - val)*(v - val);
 	});
 	return sum / mVal->mVal.size();
@@ -3690,16 +3690,16 @@ double MTypeWrap< C<T, A>, AllocatorType>::square_deviation(double val) const{
 
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
 template<class cmp>
-double MTypeWrap< C<T, A>, AllocatorType>::square_deviation(typename MTypeWrap< C<T, A>, AllocatorType>::const_value_reference_type excepty, cmp prd) const{
+T MTypeWrap< C<T, A>, AllocatorType>::square_deviation(typename MTypeWrap< C<T, A>, AllocatorType>::const_value_reference_type excepty, cmp prd) const{
 	std::vector<T> vals;
 	this->convert_type(vals);
 	if (vals.empty())
-		return 0.0;
+		return T();
 
 	vals.erase(std::remove_if(vals.begin(), vals.end(), [&](T v){return prd(v, excepty); }));
-	T sum = std::accumulate(vals.begin(), vals.end(), 0);
+	T sum = std::accumulate(vals.begin(), vals.end(), T(0.0));
 	T val = sum / vals.size();
-	sum = std::accumulate(vals.begin(), vals.end(), 0, [&](double v1, T v){
+	sum = std::accumulate(vals.begin(), vals.end(), T(0.0), [&](T v1, T v){
 		return v1 + (v - val)*(v - val);
 	});
 	return sum / vals.size();
@@ -3707,16 +3707,16 @@ double MTypeWrap< C<T, A>, AllocatorType>::square_deviation(typename MTypeWrap< 
 
 template<class T, class A, template<class T1, class A1> class C, class AllocatorType>
 template<class cmp>
-double MTypeWrap< C<T, A>, AllocatorType>::square_deviation(double val,
+T MTypeWrap< C<T, A>, AllocatorType>::square_deviation(double val,
 	typename MTypeWrap< C<T, A>, AllocatorType>::const_value_reference_type excepty, cmp prd) const
 {
 	std::vector<T> vals;
 	this->convert_type(vals);
 	if (vals.empty())
-		return 0.0;
+		return T();
 
 	vals.erase(std::remove_if(vals.begin(), vals.end(), [&](T v){return prd(v, excepty); }));
-	T sum = std::accumulate(vals.begin(), vals.end(), 0, [&](double v1, T v){
+	T sum = std::accumulate(vals.begin(), vals.end(), T(0.0), [&](T v1, T v){
 		return v1 + (v - val)*(v - val);
 	});
 	return sum / vals.size();

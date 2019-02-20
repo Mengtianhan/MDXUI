@@ -32,38 +32,138 @@
 #include <map>
 #include <fstream>
 #include <complex>
+#include <HMath.h>
+
 #ifdef __ARMADILLO__
 #include <armadillo>
 #endif
 
+#ifndef min
+#define min(a,b) (((a) < (b))?(a):(b))
+#endif
+
+#ifndef max
+#define max(a,b) (((a) > (b))?(a):(b))
+#endif
+
+#include <MTLComplex.h>
+
+
+
+//+-------------------------------------------------------------------------------------
+//
 //
 // 可以带附加属性的Sheet
 // 内存模型为例主序
 // 使用列操作的时候速度会比较快
+// 所有的fast版本除了矩阵的叉乘外，在debug模式下速度可能会比常规的快
+// 但在release模式下常规的速度在fast版本之下
+// 为什么快速的版本速度反而没有常规的快呢？
+// 因为AMP的array_view对于矩阵的数据是按照行主序处理的
+// MMatrixSheet的数据模型是列主序，所以在使用AMP的时候需要将数据转置
+// 在AMP计算完成之后有需要将数据转置回来
+// 所以和常规的比起多了几次的转置操作速度自然也就下来了
+// 既然如此，那么为什么还要提供速度并不快的fast版本呢？
+// 算是作为一种解决方案吧
+// fast版本的函数只能处理普通的数据类型 如果是复数就不能处理
 //
+//+--------------------------------------------------------------------------------------
 namespace mj{
+	
+	//
+	// 定义一个常量
+	//
+	const static std::complex<double> MI = std::sqrt(std::complex<double>(-1));
+
+	
+
+	//+-------------------------------------------------------
+	//
+	// class MMatrixSheet
+	// 一个列主序的矩阵数据
+	// 并非为了专用的数学计算而生
+	// 只是为了更好的辅助管理数据
+	// 然后顺便附带了一些简单的数学处理
+	//
+	//+---------------------------------------------------------
 	template<class T, class Property = MAnyHolder, class A = std::allocator<T>, template<class, class>class C = std::vector>
 	class MMatrixSheet{
+		//+---------------------------------------------
+		// 辅助判断
+		//
+		template<class>
+		struct IsSampleType{
+			static MMatrixSheet Apply(const MMatrixSheet& left, const MMatrixSheet& right){
+				return left.fast_multplie(right);
+			}
+		};
+
+		template<>
+		struct IsSampleType<std::complex<float>> {
+			static MMatrixSheet Apply(const MMatrixSheet& left, const MMatrixSheet& right){
+				MMatrixSheet<Complex<typename T::value_type>> outMat = left;
+				MMatrixSheet<Complex<typename T::value_type>> _right = right;
+				return outMat.fast_multplie(_right);
+			}
+		};
+
+		template<class ScaleType>
+		struct IsSampleType<std::complex<ScaleType>> : public IsSampleType<std::complex<float>>{
+		};
+
+
+		template<>
+		struct IsSampleType<Complex<float>> {
+			static MMatrixSheet Apply(const MMatrixSheet& left, const MMatrixSheet& right){
+				return left.fast_multplie(right);
+			}
+		};
+
+		template<class ScaleType>
+		struct IsSampleType<Complex<ScaleType>> : public IsSampleType<Complex<float>>{
+		};
+		
+		//
+		//+-----------------------------------------------------------
+		//
 	public:
+
+		
 		typedef T value_type;
 		typedef C<T, A> metadata_type;
 		typedef typename C<T, A>::iterator iterator;
 		typedef typename C<T, A>::const_iterator const_iterator;
 		typedef typename MConstParamWrape<T>::type const_reference_type;
 		typedef std::map<std::pair<unsigned, unsigned>, Property> PropertyType;
+
 		//
 		// 对内部数据的引用
 		//
 		class ArrayRef{
-		public:
 			template<class T1, class P1, class A1, template<class, class>class C2>
 			friend class MMatrixSheet;
-
 			ArrayRef(unsigned num) :mNum(num){ mData.resize(mNum); }
 			ArrayRef(const ArrayRef& other) :mNum(other.mNum), mData(other.mData){}
 			ArrayRef(ArrayRef&& other) :mNum(other.mNum), mData(other.mData){ other.mNum = 0; other.mData.clear(); }
-			ArrayRef& operator=(const ArrayRef& other){ mNum = other.mNum; mData = other.mData; return *this; }
-			ArrayRef& operator=(ArrayRef&& other){ mNum = other.mNum; mData = other.mData; other.mNum = 0; other.mData.clear(); return *this; }
+		public:	
+			ArrayRef& operator=(const ArrayRef& other){ 
+				if (mData.size() != other.mData.size()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*mData[i] = *(other.mData[i]);
+				}
+				return *this; 
+			}
+			ArrayRef& operator=(ArrayRef&& other){ 
+				if (mData.size() != other.mData.size()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*mData[i] = *(other.mData[i]);
+				}
+				return *this; 
+			}
 			ArrayRef(const metadata_type& other){ assign_value(other); }
 			ArrayRef& operator=(const metadata_type& other){ assign_value(other); return *this; }
 			T& operator()(unsigned index){ return *(mData[index]); }
@@ -73,10 +173,200 @@ namespace mj{
 			~ArrayRef(){ mData.clear(); mNum = 0; }
 			operator metadata_type(){ return tovalue(); }
 			operator metadata_type() const{ return const_cast<ArrayRef*>(this)->tovalue(); }
+			int  size() const{return mData.size();}
+			ArrayRef& operator+=(const T& value){ 
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) += value;
+				}
+				return *this; 
+			}
 
+			ArrayRef& operator-=(const T& value){
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) -= value;
+				}
+				return *this;
+			}
+
+			ArrayRef& operator*=(const T& value){
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) *= value;
+				}
+				return *this;
+			}
+
+			ArrayRef& operator/=(const T& value){
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) /= value;
+				}
+				return *this;
+			}
+
+			ArrayRef& operator+=(const ArrayRef& arrs){
+				if (arrs.mData.size() != mData.size()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) += *(arrs.mData[i]);
+				}
+				return *this;
+			}
+
+			ArrayRef& operator-=(const ArrayRef& arrs){
+				if (arrs.mData.size() != mData.size()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) -= *(arrs.mData[i]);
+				}
+				return *this;
+			}
+
+			ArrayRef& operator*=(const ArrayRef& arrs){
+				if (arrs.mData.size() != mData.size()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) *= *(arrs.mData[i]);
+				}
+				return *this;
+			}
+
+			ArrayRef& operator/=(const ArrayRef& arrs){
+				if (arrs.mData.size() != mData.size()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) /= *(arrs.mData[i]);
+				}
+				return *this;
+			}
+
+
+
+			//
+			// metadata_type res = arr1 + arr2
+			//
+			friend metadata_type operator+(const ArrayRef& left, const ArrayRef& right){
+				metadata_type res;
+				if (left.mData.size() != right.mData.size()){
+					return res;
+				}
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(*(left.mData[i]) + *(right.mData[i]));
+				}
+				return res;
+			}
+
+			friend metadata_type operator-(const ArrayRef& left, const ArrayRef& right){
+				metadata_type res;
+				if (left.mData.size() != right.mData.size()){
+					return res;
+				}
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(*(left.mData[i]) - *(right.mData[i]));
+				}
+				return res;
+			}
+
+			friend metadata_type  operator*(const ArrayRef& left, const ArrayRef& right){
+				metadata_type res;
+				if (left.mData.size() != right.mData.size()){
+					return res;
+				}
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(*(left.mData[i]) * *(right.mData[i]));
+				}
+				return res;
+			}
+
+			friend metadata_type  operator/(const ArrayRef& left, const ArrayRef& right){
+				metadata_type res;
+				if (left.mData.size() != right.mData.size()){
+					return res;
+				}
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(*(left.mData[i]) / *(right.mData[i]));
+				}
+				return res;
+			}
+
+
+			//
+			// metadata_type res = val + arr
+			//
+			friend metadata_type operator+(const T& left, const ArrayRef& right){
+				metadata_type res;
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(left + *(right.mData[i]));
+				}
+				return res;
+			}
+
+			friend metadata_type operator-(const T& left, const ArrayRef& right){
+				metadata_type res;
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(left - *(right.mData[i]));
+				}
+				return res;
+			}
+
+			friend metadata_type operator*(const T& left, const ArrayRef& right){
+				metadata_type res;
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(left * *(right.mData[i]));
+				}
+				return res;
+			}
+
+			friend metadata_type operator/(const T& left, const ArrayRef& right){
+				metadata_type res;
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(left / *(right.mData[i]));
+				}
+				return res;
+			}
+
+			//
+			// metadata_type res = arr + val
+			//
+			friend metadata_type operator+(const ArrayRef& right, const T& left){
+				metadata_type res;
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(left + *(right.mData[i]));
+				}
+				return res;
+			}
+
+			friend metadata_type operator-(const ArrayRef& right, const T& left){
+				metadata_type res;
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(left - *(right.mData[i]));
+				}
+				return res;
+			}
+
+			friend metadata_type operator*(const ArrayRef& right, const T& left){
+				metadata_type res;
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(left * *(right.mData[i]));
+				}
+				return res;
+			}
+
+			friend metadata_type operator/(const ArrayRef& right, const T& left){
+				metadata_type res;
+				for (int i = 0; i < right.mData.size(); ++i){
+					res.push_back(left / *(right.mData[i]));
+				}
+				return res;
+			}
 		private:
 			void setData(unsigned index, T* valptr){ if (index<mNum)mData[index] = valptr; }
 			void assign_value(const metadata_type& other){
+				if (other.empty()){
+					return;
+				}
 				int num1 = other.size();
 				int num = num1 > mNum ? mNum : num1;
 				for (int i = 0; i < num; ++i){
@@ -97,23 +387,113 @@ namespace mj{
 		};
 
 		class MatrixRef{
-		public:
 			template<class T1, class P1, class A1, template<class, class>class C2>
 			friend class MMatrixSheet;
-
 			MatrixRef(unsigned rownum, unsigned colnum){ mData.resize(rownum, colnum); }
 			MatrixRef(const MatrixRef& other) :mData(other.mData){}
 			MatrixRef(MatrixRef&& other) :mData(other.mData){ other.mData.reset(); }
-			MatrixRef& operator=(const MatrixRef& other){ mData = other.mData; return *this; }
-			MatrixRef& operator=(MatrixRef&& other){ mData = other.mData; other.mData.reset(); return *this; }
+		public:
+			MatrixRef& operator=(const MatrixRef& other){ 
+				if (other.rows() != rows() || other.cols() != cols()){
+					return *this;
+				}
+				for (int i = 0; i < rows(); ++i){
+					for (int j = 0; j < cols(); ++j){
+						*mData(i, j) = other(i, j);
+					}
+				}
+				return *this;
+			}
+
+			MatrixRef& operator=(MatrixRef&& other){ 
+				if (other.rows() != rows() || other.cols() != cols()){
+					return *this;
+				}
+				for (int i = 0; i < rows(); ++i){
+					for (int j = 0; j < cols(); ++j){
+						*mData(i, j) = other(i, j);
+					}
+				}
+				return *this;
+			}
 			MatrixRef(const MMatrixSheet& other){ assign_value(other); }
 			MatrixRef& operator=(const MMatrixSheet& other){ assign_value(other); return *this; }
 			~MatrixRef(){ mData.clear(); }
-			T& operator()(unsigned row, unsigned col){ reutrn *(mData(row, col)); }
+			T& operator()(unsigned row, unsigned col){ return *(mData(row, col)); }
 			const T& operator()(unsigned row, unsigned col) const{ return *(mData(row, col)); }
 			operator MMatrixSheet(){ return tovalue(); }
 			operator MMatrixSheet() const{ return tovalue(); }
+			unsigned rows() const{ return mData.rows(); }
+			unsigned cols() const{ return mData.cols(); }
 
+
+			MatrixRef& operator+=(const T& value){
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) += value;
+				}
+				return *this;
+			}
+
+			MatrixRef& operator-=(const T& value){
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) -= value;
+				}
+				return *this;
+			}
+
+			MatrixRef& operator*=(const T& value){
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) *= value;
+				}
+				return *this;
+			}
+
+			MatrixRef& operator/=(const T& value){
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) /= value;
+				}
+				return *this;
+			}
+
+			MatrixRef& operator+=(const MatrixRef& arrs){
+				if (arrs.rows() != rows() || arrs.cols() != cols()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) += *(arrs.mData[i]);
+				}
+				return *this;
+			}
+
+			MatrixRef& operator-=(const MatrixRef& arrs){
+				if (arrs.rows() != rows() || arrs.cols() != cols()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) -= *(arrs.mData[i]);
+				}
+				return *this;
+			}
+
+			MatrixRef& operator*=(const MatrixRef& arrs){
+				if (arrs.rows() != rows() || arrs.cols() != cols()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) *= *(arrs.mData[i]);
+				}
+				return *this;
+			}
+
+			MatrixRef& operator/=(const MatrixRef& arrs){
+				if (arrs.rows() != rows() || arrs.cols() != cols()){
+					return *this;
+				}
+				for (int i = 0; i < mData.size(); ++i){
+					*(mData[i]) /= *(arrs.mData[i]);
+				}
+				return *this;
+			}
 		private:
 			void setData(unsigned rowindex, unsigned colindex, T* valptr){ if (rowindex<mData.rows() && colindex < mData.cols())mData(rowindex, colindex) = valptr; }
 			void assign_value(const MMatrixSheet& other){
@@ -137,6 +517,10 @@ namespace mj{
 					}
 				}
 				return outv;
+			}
+
+			MMatrixSheet tovalue() const{
+				return const_cast<MatrixRef*>(this)->tovalue();
 			}
 			MMatrixSheet<T*>  mData;
 		};
@@ -318,6 +702,7 @@ namespace mj{
 		unsigned rows() const;
 		unsigned cols() const;
 		unsigned size() const;
+		unsigned length() const;
 
 		bool empty() const;
 		void clear();
@@ -363,15 +748,25 @@ namespace mj{
 		T& operator()(unsigned rowindex, unsigned colindex);
 		const T& operator()(unsigned rowindex, unsigned colindex) const;
 
+		T& operator()(unsigned index);
+		const T& operator()(unsigned index) const;
+
 
 		T& at(unsigned rowindex, unsigned colindex);
 		const T& at(unsigned rowindex, unsigned colindex) const;
 
+		T& at(unsigned index);
+		const T& at(unsigned index) const;
+
 		//
-		// 针对不能够返回 应用的 类型提供直接操作的方式
+		// 针对不能够返回 引用的 类型提供直接操作的方式
+		// 比如 bool 在vector中按照位储存所以不能按照引用的方式操作
 		//
 		void set(unsigned rowindex, unsigned colindex, const_reference_type val);
 		const_reference_type get(unsigned rowindex, unsigned colindex) const;
+
+		void set(unsigned index, const_reference_type val);
+		const_reference_type get(unsigned index) const;
 
 		//
 		// 迭代器操作
@@ -437,7 +832,26 @@ namespace mj{
 		//
 		MMatrixSheet& multplie(const MMatrixSheet& other);
 		MMatrixSheet& multplie(const metadata_type& other);
+
+
+		//
+		// 使用GPU加速
+		// 不修改原始数据
+		// 只是操作简单的数据类型
+		// 复杂的数据类型不支持，比如复数矩阵
+		//
+		MMatrixSheet fast_multplie(const MMatrixSheet& other) const;
+		MMatrixSheet fast_multplie(const metadata_type& other) const;
+
+
+
+		//
+		// 矩阵和一个列向量的叉乘
+		//
 		metadata_type operator*=(const metadata_type& colvec); // 列向量
+
+
+
 
 		//
 		// 计算行列式
@@ -445,13 +859,32 @@ namespace mj{
 		T det() const;
 
 
+
+		//
+		// 求矩阵的逆
+		//
+		MMatrixSheet inv() const;
+
+
 		//
 		// 转置,不添加求逆矩阵操作，求逆矩阵的操作太过复杂
 		//
 		MMatrixSheet t() const;
 
+
+		//
+		//
+		// 快速转置
+		// 使用GPU加速
+		// 不支持复杂数据类型
+		//
+		MMatrixSheet fast_t() const;
+
+
+		//
 		//
 		// 操作
+		//
 		//
 		template<class F>
 		MMatrixSheet transform_copy(F fun) const;
@@ -459,23 +892,65 @@ namespace mj{
 		template<class F>
 		MMatrixSheet& transform(F fun);
 
+
+
+
+		//
+		//
+		// 快速操作
+		// 函数 [=](array_view<T,2> arr,index<2> idx)__GPU_ONLY
+		// 看上去似乎快速 其实也要看操作是否复杂是否耗时
+		// 如果简单的数据变换实际效率不如常规版本
+		//
+		template<class F>
+		MMatrixSheet fast_transform_copy(F fun) const;
+
+		template<class F>
+		MMatrixSheet& fast_transform(F fun);
+
+
+		//
+		//
+		// 快速操作
+		// 函数 [=](array_view<T> arr,index<1> idx)__GPU_ONLY
+		// 只关心元素数值
+		// 不关心元素位置
+		// 速度较快
+		//
+		template<class F>
+		MMatrixSheet fast_transform_copy1(F fun) const;
+
+		template<class F>
+		MMatrixSheet& fast_transform1(F fun);
+
+
+
 		//
 		// 反转
+		// iscol == true 每一列反转
+		// iscol == false 每一行反转
 		//
 		MMatrixSheet& reverse(bool iscol = true);
 		MMatrixSheet reverse(bool iscol = true) const;
 
+
+
 		//
-		// 切起数据
+		// 切割数据
+		// 按照一定的步进进行数据提取
 		//
 		MMatrixSheet slice(unsigned rowstep,unsigned colstep);
 		MMatrixSheet slice(unsigned rowstep, unsigned colstep) const;
+
+
 
 
 		//
 		// 调整数据
 		// 例如将数据调整到+-180之间
 		// adjust(360,-180,180)
+		// if < -180 then + 360
+		// if > 180 then - 360
 		//
 		template<class Less = std::less<T>, class Greater = std::greater<T>, class Equal_to = std::equal_to<T>>
 		void adjust(const_reference_type adjustvalue, const_reference_type __minvalue,
@@ -484,8 +959,12 @@ namespace mj{
 			Greater __greaterfun = Greater(),
 			Equal_to __equalfun = Equal_to());
 
+
+
+
 		//
 		// 替换
+		// if(prd(val,oldval) then val = newval
 		//
 		template<class cmp = std::equal_to<T>>
 		MMatrixSheet& replace(
@@ -493,20 +972,35 @@ namespace mj{
 			typename MConstParamWrape<T>::type newval,
 			cmp prd = cmp());
 
+
+
+
 		//
 		// 检查包含
+		// if(prd(__val,val) return true
 		//
 		template<class cmp = std::equal_to<T>>
 		bool contains(const_reference_type val, cmp prd = cmp());
 
+
+		//
+		// 查找指定值在矩阵中出现的第一个位置
+		//
 		template<class cmp = std::equal_to<T>>
 		bool index(const_reference_type val, unsigned& rowindex, unsigned& colindex, cmp prd = cmp());
 
+
+
+
 		//
 		// 搜索满足条件的值
+		// 所有满足条件的值都会被记录下来
 		//
 		template<class cmp = std::equal_to<T>>
 		metadata_type search(const_reference_type val, cmp prd = cmp()) const;
+
+
+
 
 		//
 		// 统计计算
@@ -516,11 +1010,14 @@ namespace mj{
 		T max_index(unsigned& rowindex, unsigned& colindex) const; // 最大值索引
 		T min_index(unsigned& rowindex, unsigned& colindex) const; // 最小值索引
 		T sum() const;  // 求和
-		double aval() const;  // 平均值
-		double standardiff() const; // 标准差
-		double squaldiff() const; // 方差
-		double standardiff_if(double avl) const; // 给定均值求标准差
-		double squaldiff_if(double avl) const; // 给定均值求方差
+		T aval() const;  // 平均值
+		T standardiff() const; // 标准差
+		T squaldiff() const; // 方差
+		T standardiff_if(const_reference_type avl) const; // 给定均值求标准差
+		T squaldiff_if(const_reference_type avl) const; // 给定均值求方差
+
+
+
 
 		//
 		// 忽略某些值再计算
@@ -541,44 +1038,58 @@ namespace mj{
 		T sum(const_reference_type excepty, cmp prd = cmp()) const;
 
 		template<class cmp = std::equal_to<T>>
-		double aval(const_reference_type excepty, cmp prd = cmp()) const;
+		T aval(const_reference_type excepty, cmp prd = cmp()) const;
 
 		template<class cmp = std::equal_to<T>>
-		double standardiff(const_reference_type excepty, cmp prd = cmp()) const;
+		T standardiff(const_reference_type excepty, cmp prd = cmp()) const;
 
 		template<class cmp = std::equal_to<T>>
-		double squaldiff(const_reference_type excepty, cmp prd = cmp()) const; // 方差
+		T squaldiff(const_reference_type excepty, cmp prd = cmp()) const; // 方差
 
 		template<class cmp = std::equal_to<T>>
-		double standardiff_if(double avl, const_reference_type excepty, cmp prd = cmp()) const;
+		T standardiff_if(const_reference_type avl, const_reference_type excepty, cmp prd = cmp()) const;
 
 		template<class cmp = std::equal_to<T>>
-		double squaldiff_if(double avl, const_reference_type excepty, cmp prd = cmp()) const; // 方差
+		T squaldiff_if(const_reference_type avl, const_reference_type excepty, cmp prd = cmp()) const; // 方差
+
+
+
 
 		//
 		// 打印
 		//
-		void print(const char* msg = "", std::ostream& os = std::cout);
+		void print(const char* msg = "", std::ostream& os = std::cout) const;
 		void load(const char* filename, bool isbinary = true);
-		void save(const char* filename, bool isbinary = true);
+		void save(const char* filename, bool isbinary = true) const;
+
+
 
 
 		//
 		// 此处的 HelpType == MString
 		// 为了不引入该头文件
 		// 所以只有在使用的时候才对其引入
+		// mj::dmat m;
+		// m.loadAll<MString>("text.txt")
+		// 当文件是纯数据 没有指定大小
+		// 但是按照一定的格式存储时可以使用该方法尝试读取数据
 		//
 		template<class HelpType>
 		void loadAll(const char* filename, const char* spliter = ", \t\r\n", bool bIsMatch = true);
+
+
 
 		//
 		// 使用流操作
 		//
 		void load(std::istream& is, bool isbinary = true);
-		__int64 save(std::ostream& is, bool isbinary = true);
+		__int64 save(std::ostream& is, bool isbinary = true) const;
 
 		void load(std::istream& is, char spliter);
-		void save(std::ostream& os, char spliter);
+		void save(std::ostream& os, char spliter) const;
+
+
+
 
 		//
 		// 三角函数计算 不在原地修改，如果需要原地修改那么使用transform
@@ -593,6 +1104,14 @@ namespace mj{
 		MMatrixSheet sqrt() const;
 		MMatrixSheet square() const;
 		MMatrixSheet rad() const;
+		MMatrixSheet pow(const_reference_type n) const;
+		MMatrixSheet floor() const;
+		MMatrixSheet round() const; 
+		MMatrixSheet replace_min(const_reference_type val) const; // 取较小的元素
+		MMatrixSheet replace_max(const_reference_type val) const; // 取较大的元素
+		MMatrixSheet prod() const;
+		MMatrixSheet matSum() const;
+		
 
 		//
 		// 如果T是复数便可以使用下面的函数
@@ -601,30 +1120,92 @@ namespace mj{
 		MMatrixSheet<U, Property, A2, C> atan2() const; // 针对复数才有用
 		template<class U = typename T::value_type, class A2 = std::allocator<U>>
 		MMatrixSheet<U, Property, A2, C> arg() const;  // 针对复数才有用
+
+
+		//
+		// mj::cx_dmat m;
+		// mj::dmat m1 = m.abs<double>();
+		//
+		template<class U = typename T::value_type, class A2 = std::allocator<U>>
+		MMatrixSheet<U, Property, A2, C> abs() const;  // 针对复数才有用
+
+
+		//
+		// mj::dmat m;
+		// mj::cx_dmat m1 = m.sqrt<std::comple<double>>();
+		//
+		template<class U, class A2 = std::allocator<U>>
+		MMatrixSheet<U, Property, A2, C> sqrt() const;
+
+
+		//
+		// mj::cx_dmat m1;
+		// mj::cx_mat m2 = m1.conj();
+		//
 		MMatrixSheet conj() const; // 共轭复数
 
+
+		//
+		// 针对复矩阵
+		// 获取虚部部分
+		//
 		template<class U = typename T::value_type, class Property2 = Property, class A2 = std::allocator<U>>
 		MMatrixSheet<U, Property2, A2, C> imag() const;
 
+
+		//
+		// 针对复矩阵
+		// 获取虚部部分
+		//
 		template<class U, class Property2 = Property, class A2 = std::allocator<U>>
 		MMatrixSheet<U, Property2, A2, C>& imag(MMatrixSheet<U, Property2, A2, C>& out) const;
 
+
+		//
+		// 针对复矩阵
+		// 设置虚部
+		//
 		template<class U = typename T::value_type, class Property2 = Property, class A2 = std::allocator<U>>
 		void set_imag(const MMatrixSheet<U, Property2, A2, C>& imagmat);
 
+
+		//
+		// 针对复矩阵
+		// 获取实部部分
+		//
 		template<class U = typename T::value_type, class Property2 = Property, class A2 = std::allocator<U>>
 		MMatrixSheet<U, Property2, A2, C> real() const;
 
+
+		//
+		// 针对复矩阵
+		// 获取实部部分
+		//
 		template<class U, class Property2 = Property, class A2 = std::allocator<U>>
 		MMatrixSheet<U, Property2, A2, C>& real(MMatrixSheet<U, Property2, A2, C>& out) const;
 
+
+		//
+		// 针对复矩阵
+		// 设置实部部分
+		//
 		template<class U = typename T::value_type, class Property2 = Property, class A2 = std::allocator<U>>
 		void set_real(const MMatrixSheet<U, Property2, A2, C>& realmat);
 
 
+
+		//+------------------------------------------------------------------------------
+		//
 		//
 		// 友元函数
+		// mj::dmat m;
+		// mj::dmat m2 = 1.0 + m + 1.2..... // 混合运算
+		// mj::dmat m3 = m2 * m; // 点成
+		// mj::dmat m4 = m2 / m;
+		// mj::dmat m5 = m2 % m;  //叉乘
 		//
+		//
+		//+-------------------------------------------------------------------------------
 		friend MMatrixSheet operator+(const MMatrixSheet& left, const MMatrixSheet& right){
 			MMatrixSheet outmat;
 			if (left.cols() != right.cols() || left.rows() != right.rows()){
@@ -665,6 +1246,132 @@ namespace mj{
 			return outmat;
 		}
 
+		//+----------------------------------------------------------
+		//
+		// 实数矩阵和复数矩阵的操作
+		//
+		//+----------------------------------------------------------
+		friend MMatrixSheet<std::complex<T>> operator+(const MMatrixSheet& left, const MMatrixSheet<std::complex<T>>& right){
+			MMatrixSheet<std::complex<T>> outmat;
+			if (left.cols() != right.cols() || left.rows() != right.rows()){
+				return outmat;
+			}
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) + right(i, j);
+				}
+			}
+			return outmat;
+		}
+
+
+		friend MMatrixSheet<std::complex<T>> operator+(const MMatrixSheet<std::complex<T>>& left, const MMatrixSheet& right){
+			MMatrixSheet<std::complex<T>> outmat;
+			if (left.cols() != right.cols() || left.rows() != right.rows()){
+				return outmat;
+			}
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) + right(i, j);
+				}
+			}
+			return outmat;
+		}
+
+
+		friend MMatrixSheet<std::complex<T>> operator-(const MMatrixSheet& left, const MMatrixSheet<std::complex<T>>& right){
+			MMatrixSheet<std::complex<T>> outmat;
+			if (left.cols() != right.cols() || left.rows() != right.rows()){
+				return outmat;
+			}
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) - right(i, j);
+				}
+			}
+			return outmat;
+		}
+
+		friend MMatrixSheet<std::complex<T>> operator-(const MMatrixSheet<std::complex<T>>& left, const MMatrixSheet& right){
+			MMatrixSheet<std::complex<T>> outmat;
+			if (left.cols() != right.cols() || left.rows() != right.rows()){
+				return outmat;
+			}
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) - right(i, j);
+				}
+			}
+			return outmat;
+		}
+
+
+		friend MMatrixSheet<std::complex<T>> operator*(const MMatrixSheet& left, const MMatrixSheet<std::complex<T>>& right){
+			MMatrixSheet<std::complex<T>> outmat;
+			if (left.cols() != right.cols() || left.rows() != right.rows()){
+				return outmat;
+			}
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) * right(i, j);
+				}
+			}
+			return outmat;
+		}
+
+		friend MMatrixSheet<std::complex<T>> operator*(const MMatrixSheet<std::complex<T>>& left, const MMatrixSheet& right){
+			MMatrixSheet<std::complex<T>> outmat;
+			if (left.cols() != right.cols() || left.rows() != right.rows()){
+				return outmat;
+			}
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) * right(i, j);
+				}
+			}
+			return outmat;
+		}
+
+
+		friend MMatrixSheet<std::complex<T>> operator/(const MMatrixSheet& left, const MMatrixSheet<std::complex<T>>& right){
+			MMatrixSheet<std::complex<T>> outmat;
+			if (left.cols() != right.cols() || left.rows() != right.rows()){
+				return outmat;
+			}
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) / right(i, j);
+				}
+			}
+			return outmat;
+		}
+
+		friend MMatrixSheet<std::complex<T>> operator/(const MMatrixSheet<std::complex<T>>& left, const MMatrixSheet& right){
+			MMatrixSheet<std::complex<T>> outmat;
+			if (left.cols() != right.cols() || left.rows() != right.rows()){
+				return outmat;
+			}
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) / right(i, j);
+				}
+			}
+			return outmat;
+		}
+
+		//+--------------------------------------------------------------------------------
+		//
+		// 和数值操作
+		//
+		//+---------------------------------------------------------------------------------
 		friend MMatrixSheet operator+(const MMatrixSheet& left, const_reference_type value){
 			MMatrixSheet outmat = left;
 			outmat += value;
@@ -683,38 +1390,268 @@ namespace mj{
 			return outmat;
 		}
 
-		friend MMatrixSheet operator/(const MMatrixSheet& left, const_reference_type right){
+		friend MMatrixSheet operator/(const MMatrixSheet& left, const_reference_type value){
 			MMatrixSheet outmat = left;
 			outmat /= value;
 			return outmat;
 		}
 
+
+		//+------------------------------------------------
+		//
+		// 和复数的操作
+		//
+		//+------------------------------------------------
+		template<class U>
+		friend MMatrixSheet<std::complex<U>> operator+(const MMatrixSheet& left, const std::complex<U>& value){
+			MMatrixSheet<std::complex<U>> outmat;
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) + value;
+				}
+			}
+			return outmat;
+		}
+
+
+		template<class U>
+		friend MMatrixSheet<std::complex<U>> operator-(const MMatrixSheet& left, const std::complex<U>& value){
+			MMatrixSheet<std::complex<U>> outmat;
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) - value;
+				}
+			}
+			return outmat;
+		}
+
+
+		template<class U>
+		friend MMatrixSheet<std::complex<U>> operator*(const MMatrixSheet& left, const std::complex<U>& value){
+			MMatrixSheet<std::complex<U>> outmat;
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) * value;
+				}
+			}
+			return outmat;
+		}
+
+
+		template<class U>
+		friend MMatrixSheet<std::complex<U>> operator/(const MMatrixSheet& left, const std::complex<U>& value){
+			MMatrixSheet<std::complex<U>> outmat;
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = left(i, j) / value;
+				}
+			}
+			return outmat;
+		}
+
+		//+--------------------------------------------------------------------------------
+		//
+		// 数值在前
+		//
+		//+--------------------------------------------------------------------------------
+		friend MMatrixSheet operator+(const_reference_type value,const MMatrixSheet& right){
+			if (right.empty()){
+				return right;
+			}
+			MMatrixSheet outmat = right;
+			outmat += value;
+			return outmat;
+		}
+
+		friend MMatrixSheet operator-(const_reference_type value, const MMatrixSheet& right){
+			if (right.empty()){
+				return right;
+			}
+			MMatrixSheet outmat = right;
+			for (auto& v : outmat.reference_obj()){
+				v = value - v;
+			}
+			return outmat;
+		}
+
+		friend MMatrixSheet operator*(const_reference_type value, const MMatrixSheet& right){
+			if (right.empty()){
+				return right;
+			}
+			MMatrixSheet outmat = right;
+			for (auto& v : outmat.reference_obj()){
+				v *= value;
+			}
+			return outmat;
+		}
+
+		friend MMatrixSheet operator/(const_reference_type value, const MMatrixSheet& right){
+			if (right.empty()){
+				return right;
+			}
+			MMatrixSheet outmat = right;
+			for (auto& v : outmat.reference_obj()){
+				v = value/v;
+			}
+			return outmat;
+		}
+
+
+		//+-------------------------------------
+		//
+		// 和复数的操作
+		//
+		//+-------------------------------------
+		template<class U>
+		friend MMatrixSheet<std::complex<U>> operator+(const std::complex<U>& value, const MMatrixSheet& left){
+			return left + value;
+		}
+
+
+		template<class U>
+		friend MMatrixSheet<std::complex<U>> operator-(const std::complex<U>& value,const MMatrixSheet& left){
+			MMatrixSheet<std::complex<U>> outmat;
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = value - left(i, j);
+				}
+			}
+			return outmat;
+		}
+
+
+		template<class U>
+		friend MMatrixSheet<std::complex<U>> operator*(const std::complex<U>& value, const MMatrixSheet& left){
+			return left * value;
+		}
+
+
+		template<class U>
+		friend MMatrixSheet<std::complex<U>> operator/(const std::complex<U>& value, const MMatrixSheet& left){
+			MMatrixSheet<std::complex<U>> outmat;
+			outmat.resize(left.rows(), left.cols());
+			for (int i = 0; i < left.rows(); ++i){
+				for (int j = 0; j < left.cols(); ++j){
+					outmat(i, j) = value / left(i, j);
+				}
+			}
+			return outmat;
+		}
+
+
+
+
+
+		//+------------------------------------------------------
+		//
+		// 矩阵叉乘的操作符
+		// 由于一开始使用* 去作为元素相乘
+		// 后来想要重载一个叉乘操作符时发现没啥选择了
+		//
+		//+-------------------------------------------------------
+		friend MMatrixSheet operator%(const MMatrixSheet& left, const MMatrixSheet& right){
+			return IsSampleType<T>::Apply(left, right);
+		}
+
+		friend MMatrixSheet operator%(const MMatrixSheet& left, const metadata_type& colvec){
+			MMatrixSheet right;
+			right.attach(colvec, colvec.size(), 1);
+			return IsSampleType<T>::Apply(left, right);
+		}
+		
+		friend MMatrixSheet operator%(const metadata_type& colvec, const metadata_type& rowvec){
+			MMatrixSheet left;
+			left.attach(colvec, colvec.size(), 1);
+
+			MMatrixSheet right;
+			right.attach(rowvec, 1, rowvec.size());
+			return IsSampleType<T>::Apply(left, right);
+		}
+
+
+		//
+		// 复数矩阵和非复数矩阵之间的叉乘
+		//
+		friend MMatrixSheet<std::complex<T>> operator%(const MMatrixSheet& left, const MMatrixSheet<std::complex<T>>& right){
+			MMatrixSheet<Complex<T>> _left = left;
+			MMatrixSheet<Complex<T>> _right = right;
+			return _left % _right;
+		}
+
+		friend MMatrixSheet<std::complex<T>> operator%(const MMatrixSheet<std::complex<T>>& left, const MMatrixSheet& right){
+			MMatrixSheet<Complex<T>> _left = left;
+			MMatrixSheet<Complex<T>> _right = right;
+			return _left % _right;
+		}
+
+		friend MMatrixSheet<Complex<T>> operator%(const MMatrixSheet& left, const MMatrixSheet<Complex<T>>& right){
+			MMatrixSheet<Complex<T>> _left = left;
+			return _left % right;
+		}
+
+		friend MMatrixSheet<Complex<T>> operator%(const MMatrixSheet<Complex<T>>& left, const MMatrixSheet& right){
+			MMatrixSheet<Complex<T>> _right = right;
+			return left % right;
+		}
+
+
+
+		//+------------------------------------------------------
+		//
+		// 流输出
+		//
+		//+------------------------------------------------------
 		friend std::ostream& operator<<(std::ostream& os, const MMatrixSheet& mat){
 			mat.print("", os);
 			return os;
 		}
-	};
+
+	}; //end template<class T, class Property = MAnyHolder, class A = std::allocator<T>, template<class, class>class C = std::vector> class MMatrixSheet
+
+
+
+
+
+
 
 	/******************************************下面是实现细节没兴趣可以不用关心*************************************************************************/
-	/*-----------------------------------------------------------------------------------------------*/
-	/*   实现
-	*
-	*
-	*
-	*
-	*
-	*
-	*
-	*
-	*
-	*
+
+
+
+
 	/*-----------------------------------------------------------------------------------------------
 	*
 	*
 	*
 	*
-	*/
-	/*---------------------------------------------华丽的分割线---------------------------------------*/
+	*
+	*
+	*   实现细节
+	*
+	*
+	*
+	*
+	*
+	*
+	*
+	*
+	*
+	*
+	*-----------------------------------------------------------------------------------------------
+	*
+	*
+	*
+	*
+	*
+	*---------------------------------------------华丽的分割线---------------------------------------*/
+
+
+
 
 	template<class T, class Property, class A, template<class, class>class C>
 	MMatrixSheet<T, Property, A, C>::MMatrixSheet()
@@ -970,7 +1907,7 @@ namespace mj{
 	MMatrixSheet<T, Property, A, C>::MMatrixSheet(const arma::Mat<T>& other){
 		mCols = other.n_cols;
 		mRows = other.n_rows;
-		resize(mRows, mCols);
+		mData.resize(mRows*mCols);
 		memcpy(&mData[0], other.memptr(), sizeof(T)*mRows*mCols);
 	}
 
@@ -978,7 +1915,7 @@ namespace mj{
 	MMatrixSheet<T, Property, A, C>& MMatrixSheet<T, Property, A, C>::operator=(const arma::Mat<T>& other){
 		this->mCols = other.n_cols;
 		this->mRows = other.n_rows;
-		resize(mRows, mCols);
+		mData.resize(mRows*mCols);
 		memcpy(&mData[0], other.memptr(), sizeof(T)*mRows*mCols);
 		return *this;
 	}
@@ -1360,6 +2297,11 @@ namespace mj{
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
+	unsigned MMatrixSheet<T, Property, A, C>::length() const{
+		return mRows > mCols ? mRows : mCols;
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
 	bool MMatrixSheet<T, Property, A, C>::empty() const
 	{
 		return mData.empty();
@@ -1614,6 +2556,18 @@ namespace mj{
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
+	T& MMatrixSheet<T, Property, A, C>::operator()(unsigned index)
+	{
+		return mData[index];
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	const T& MMatrixSheet<T, Property, A, C>::operator()(unsigned index) const
+	{
+		return mData[index];
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
 	T& MMatrixSheet<T, Property, A, C>::at(unsigned rowindex, unsigned colindex){
 		return mData.at(colindex*mRows + rowindex);
 	}
@@ -1621,6 +2575,16 @@ namespace mj{
 	template<class T, class Property, class A, template<class, class>class C>
 	const T& MMatrixSheet<T, Property, A, C>::at(unsigned rowindex, unsigned colindex) const{
 		return mData.at(colindex*mRows + rowindex);
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	T& MMatrixSheet<T, Property, A, C>::at(unsigned index){
+		return mData.at(index);
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	const T& MMatrixSheet<T, Property, A, C>::at(unsigned index) const{
+		return mData.at(index);
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
@@ -1634,6 +2598,17 @@ namespace mj{
 		return mData[colindex*mRows + rowindex];
 	}
 
+
+	template<class T, class Property, class A, template<class, class>class C>
+	void MMatrixSheet<T, Property, A, C>::set(unsigned index, typename MMatrixSheet<T, Property, A, C>::const_reference_type val){
+		mData[index] = val;
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	typename MMatrixSheet<T, Property, A, C>::const_reference_type MMatrixSheet<T, Property, A, C>::get(unsigned index) const
+	{
+		return mData[index];
+	}
 	//
 	// 迭代器操作
 	//
@@ -1826,6 +2801,12 @@ namespace mj{
 		return *this;
 	}
 
+
+	//////////////////////////////////////////////////////////////////////////
+	//
+	// 矩阵和向量的叉乘
+	//
+	///////////////////////////////////////////////////////////////////////////
 	template<class T, class Property, class A, template<class, class>class C>
 	typename MMatrixSheet<T, Property, A, C>::metadata_type MMatrixSheet<T, Property, A, C>::operator*=(const metadata_type& colvec){
 		metadata_type temp;
@@ -1842,27 +2823,32 @@ namespace mj{
 		return temp;
 	}
 
+
+	//////////////////////////////////////////////////////////////////////////
 	//
-	// 数量乘
+	// 矩阵和矩阵的叉乘
 	//
+	//////////////////////////////////////////////////////////////////////////
 	template<class T, class Property, class A, template<class, class>class C>
 	MMatrixSheet<T, Property, A, C>& MMatrixSheet<T, Property, A, C>::multplie(const MMatrixSheet& other){
 		if (mCols != other.mRows){
 			return *this;
 		}
 		MMatrixSheet temp(mRows, other.mCols);
-		for (unsigned i = 0; i < mRows; ++i){
-			for (unsigned j = 0; j < other.mCols; ++j){
+		for (int i = 0; i < mRows; ++i){
+			for (int j = 0; j < other.mCols; ++j){
 				temp(i, j) = 0;
-				for (unsigned k = 0; k < mCols; ++k){
+				for (int k = 0; k < mCols; ++k){
 					temp(i, j) += (*this)(i, k)*other(k, j);
 				}
 			}
 		}
+
 		mCols = other.mCols;
 		mData = temp.mData;
 		return *this;
 	}
+
 
 	template<class T, class Property, class A, template<class, class>class C>
 	MMatrixSheet<T, Property, A, C>& MMatrixSheet<T, Property, A, C>::multplie(const metadata_type& other){
@@ -1870,72 +2856,187 @@ namespace mj{
 		return *this;
 	}
 
+
+
+
+	//////////////////////////////////////////////////////////////////////////
+	//
+	// 快速叉乘
+	//
+	//////////////////////////////////////////////////////////////////////////
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::fast_multplie(const MMatrixSheet& other) const{
+		if (empty()){
+			return *this;
+		}
+		MMatrixSheet temp(mRows, other.mCols);
+		if (mCols != other.mRows){
+			return temp;
+		}
+		try{
+			concurrency::array_view<const T, 2> vcols(mCols, mRows, mData);
+			concurrency::array_view<const T, 2> vcols2(other.mCols, other.mRows, other.mData);
+			concurrency::array_view<T, 2> vtemp(other.mCols, mRows, temp.mData);
+
+			unsigned int __col = other.mCols;
+			unsigned int __row = mRows;
+			unsigned int __newrow = mCols;
+
+			concurrency::parallel_for_each(vtemp.extent, [=](concurrency::index<2> idx) restrict(amp){
+				unsigned int r = idx[1];
+				unsigned int j = idx[0];
+				T res = T();
+				for (int k = 0; k < __newrow; ++k){
+					res = res + vcols(k, r)*vcols2(j, k);
+				}
+				vtemp(j, r) = res;
+			});
+			vtemp.synchronize();
+			vtemp(0, 0);
+		}
+		catch (...){
+			std::cout << "显存不足已支撑快速计算转用普通的计算方式"<<std::endl;
+			for (int i = 0; i < mRows; ++i){
+				for (int j = 0; j < other.mCols; ++j){
+					temp(i, j) = T();
+					for (int k = 0; k < mCols; ++k){
+						temp(i, j) += (*this)(i, k)*other(k, j);
+					}
+				}
+			}
+		}
+		return temp;
+	}
+
+
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::fast_multplie(const metadata_type& colvec) const{
+		if (empty()){
+			return *this;
+		}
+		MMatrixSheet temp(mRows, 1);
+		if (mCols != colvec.size()){
+			return temp;
+		}
+	
+		try{
+			concurrency::array_view<const T, 2> vcols(mCols, mRows, mData);
+			concurrency::array_view<const T, 1> vcols2(colvec.size(), colvec);
+			concurrency::array_view<T, 1> vtemp(mRows, temp.mData);
+			unsigned int __newrow = mCols;
+			concurrency::parallel_for_each(vtemp.extent, [=](concurrency::index<1> idx) restrict(amp){
+				unsigned int r = idx[0];
+				T res = T();
+				for (int k = 0; k < __newrow; ++k){
+					res += vcols(k, r)*vcols2(k);
+				}
+				vtemp[r] = res;
+			});
+			vtemp.synchronize();
+			vtemp(0);
+		}
+		catch (...){
+			for (unsigned i = 0; i < mRows; ++i){
+				temp(i,0) = 0;
+				for (unsigned j = 0; j < mCols; ++j){
+					temp(i,0) += (*this)(i, j)*colvec[j];
+				}
+			}
+		}
+		return temp;
+	}
+
+
+	//////////////////////////////////////////////////////////////////////////
 	//
 	// 计算行列式
 	//
+	//////////////////////////////////////////////////////////////////////////
 	template<class T, class Property, class A, template<class, class>class C>
 	T MMatrixSheet<T, Property, A, C>::det() const
 	{
-		if (mRows != mCols){
-			throw std::logic_error("非方阵不可求行列式");
-		}
-		if (empty())
+		if (empty()){
 			return T();
-		T detval = T();
-
-		//
-		// 先计算出+的部分
-		//
-		for (int k = 0; k < mCols; ++k){
-			T tk = 1;
-			int index = 0;
-			for (int i = k; i < mCols; ++i){
-				for (int j = index; j < mRows; ++j){
-					tk *= (*this)(j,i);
-					break;
-				}
-				++index;
-			}
-
-			for (int i = 0; i < k; ++i){
-				for (int j = index; j < mRows; ++j){
-					tk *= (*this)(j, i);
-					break;
-				}
-				++index;
-			}
-			detval += tk;
 		}
-		//
-		// 在计算出-的部分
-		//
-		for (unsigned k = 0; k < mRows; ++k){
-			T tk = 1;
-			int index = mCols;
-			for (int i = k; i < mRows; ++i){
-				for (int j = index; j > 0; --j){
-					tk *= (*this)(i, j - 1);
-					break;
+			
+		if (size() == 1){
+			return mData[0];
+		}
+
+		if (mRows != mCols){
+			return T();
+		}
+
+#ifndef __ARMADILLO__
+		int switchNum = 0;
+		MMatrixSheet m = *this;
+		for (int i = 0; i < m.mRows; ++i){
+			if (m(i, i) == T()){
+				int index = 0;
+				for (int k = i; k < m.mCols; ++k){
+					if (m(i, k) != T()){
+						index = k;
+						break;
+					}
 				}
-				--index;
+
+				for (int k = 0; k < mRows; ++k){
+					std::swap(m(k, i), m(k,index));
+				}
+				++switchNum;
 			}
 
-			for (int i = 0; i < k; ++i){
-				for (int j = index; j >0; --j){
-					tk *= (*this)(i, j-1);
-					break;
+			T val = m(i, i);
+			for (int j = i + 1; j < m.cols(); ++j){
+				if (m(i, j) != T()){
+					T res = m(i, j) / val;
+					//
+					// cj - ci * res
+					//
+					for (int k = 0; k < mRows; ++k){
+						m(k, j) -= m(k, i)*res;
+					}
 				}
-				--index;
 			}
-			detval -= tk;
 		}
-		return detval;
+
+		T res = m(0, 0);
+		for (int i = 1; i < m.rows(); ++i){
+			res *= m(i, i);
+		}
+
+		return res*std::pow(-1, switchNum);
+#else
+		//
+		// 使用专业的计算速度会更快些
+		//
+		arma::Mat<T> m1(mem_ptr(), rows(), cols());
+		return arma::det(m1);
+#endif
 	}
 
 
 	//
+	// 求矩阵的逆
+	//
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::inv() const{
+#ifdef __ARMADILLO__
+		arma::Mat<T> m(&mData[0],mRows,mCols);
+		arma::Mat<T> m1 = arma::inv(m);
+		MMatrixSheet mout(m1.memptr(),m1.n_rows,m1.n_cols);
+		return mout;
+#else
+		static_assert(false, "Error MMatrixSheet<T, Property, A, C>::inv() Not support inverse of the matrix expression and define __ARMADILLO__ to support inverse");
+#endif
+	}
+
+
+	//////////////////////////////////////////////////////////////////////////
+	//
 	// 转置
 	//
+	//////////////////////////////////////////////////////////////////////////
 	template<class T, class Property, class A, template<class, class>class C>
 	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::t() const{
 		MMatrixSheet temp(mCols, mRows);
@@ -1948,9 +3049,45 @@ namespace mj{
 	}
 
 
+	//////////////////////////////////////////////////////////////////////////
+	//
+	// 快速转置
+	//
+	//////////////////////////////////////////////////////////////////////////
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::fast_t() const{
+		if (empty()){
+			return *this;
+		}
+		MMatrixSheet temp(mCols, mRows);
+		try{
+			std::vector<T> __datas = mData;
+			concurrency::array_view<const T, 2> vcols(mCols, mRows, __datas);
+			concurrency::array_view<T, 2> vcols2(mRows, mCols, temp.mData);
+			concurrency::parallel_for_each(vcols.extent, [=](concurrency::index<2> idx) restrict(amp){
+				unsigned r = idx[0];
+				unsigned c = idx[1];
+				vcols2(c, r) = vcols(r, c);
+			});
+			vcols2.synchronize();
+			vcols2(0, 0);
+		}
+		catch (...){
+			for (unsigned i = 0; i < mRows; ++i){
+				for (unsigned j = 0; j < mCols; ++j){
+					temp(j, i) = (*this)(i, j);
+				}
+			}
+		}
+		return temp;
+	}
+
+
+	//////////////////////////////////////////////////////////////////////////
 	//
 	// 操作
 	//
+	//////////////////////////////////////////////////////////////////////////
 	template<class T, class Property, class A, template<class, class>class C>
 	template<class F>
 	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::transform_copy(F fun) const
@@ -1975,9 +3112,90 @@ namespace mj{
 		return *this;
 	}
 
+
+
+	//////////////////////////////////////////////////////////////////////////
+	//
+	// 快速操作
+	//
+	//////////////////////////////////////////////////////////////////////////
+	template<class T, class Property, class A, template<class, class>class C>
+	template<class F>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::fast_transform_copy(F fun) const
+	{
+		if (empty()){
+			return *this;
+		}
+		MMatrixSheet temp = *this;
+		MMatrixSheet tmat1 = temp.fast_t();
+		std::vector<T> __datas(mRows*mCols);
+		concurrency::array_view<const T, 2> vcols(tmat1.rows(), tmat1.cols(), tmat1.mData);
+		concurrency::array_view<T, 2> vcols2(tmat1.rows(), tmat1.cols(), __datas);
+		concurrency::parallel_for_each(vcols.extent, [=](concurrency::index<2> idx) restrict(amp){
+			vcols2[idx] = fun(vcols, idx);
+		});
+		vcols.synchronize();
+		vcols2(0, 0);
+		tmat1.mData = __datas;
+		temp = tmat1.fast_t();
+		return temp;
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	template<class F>
+	MMatrixSheet<T, Property, A, C>& MMatrixSheet<T, Property, A, C>::fast_transform(F fun){
+		if (empty()){
+			return *this;
+		}
+		MMatrixSheet tmat1 = fast_t();
+		concurrency::array_view<T, 2> vcols(mRows, mCols, tmat1.mData);
+		concurrency::parallel_for_each(vcols.extent, [=](concurrency::index<2> idx) restrict(amp){
+			vcols[idx] = fun(vcols, idx);
+		});
+		vcols.synchronize();
+		vcols(0, 0);
+		mData = tmat1.fast_t().mData;
+		return *this;
+	}
+
+
+	template<class T, class Property, class A, template<class, class>class C>
+	template<class F>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::fast_transform_copy1(F fun) const{
+		if (empty()){
+			return *this;
+		}
+		MMatrixSheet<T, Property, A, C> res = *this;
+		concurrency::array_view<T, 1> vcols(mRows*mCols, res.mData);
+		concurrency::parallel_for_each(vcols.extent, [=](concurrency::index<1> idx) restrict(amp){
+			vcols[idx] = fun(vcols, idx);
+		});
+		vcols.synchronize();
+		vcols(0);
+		return res;
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	template<class F>
+	MMatrixSheet<T, Property, A, C>& MMatrixSheet<T, Property, A, C>::fast_transform1(F fun){
+		if (empty()){
+			return *this;
+		}
+		concurrency::array_view<T, 1> vcols(mRows*mCols, mData);
+		concurrency::parallel_for_each(vcols.extent, [=](concurrency::index<1> idx) restrict(amp){
+			vcols[idx] = fun(vcols, idx);
+		});
+		vcols.synchronize();
+		vcols(0);
+		return *this;
+	}
+
+
+	//////////////////////////////////////////////////////////////////////////
 	//
 	// 反转
 	//
+	//////////////////////////////////////////////////////////////////////////
 	template<class T, class Property, class A, template<class, class>class C>
 	MMatrixSheet<T, Property, A, C>& MMatrixSheet<T, Property, A, C>::reverse(bool iscol)
 	{
@@ -2176,11 +3394,11 @@ namespace mj{
 	{
 		if (mRows == 0 || mCols == 0)
 			return T();
-		return std::accumulate(mData.begin(), mData.end(), 0);
+		return std::accumulate(mData.begin(), mData.end(), T(0.0));
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
-	double MMatrixSheet<T, Property, A, C>::aval() const
+	T MMatrixSheet<T, Property, A, C>::aval() const
 	{
 		if (mRows == 0 || mCols == 0)
 			return T();
@@ -2188,7 +3406,7 @@ namespace mj{
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
-	double MMatrixSheet<T, Property, A, C>::standardiff() const
+	T MMatrixSheet<T, Property, A, C>::standardiff() const
 	{
 		if (mRows == 0 || mCols == 0)
 			return T();
@@ -2196,19 +3414,19 @@ namespace mj{
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
-	double MMatrixSheet<T, Property, A, C>::squaldiff() const
+	T MMatrixSheet<T, Property, A, C>::squaldiff() const
 	{
 		if (mRows == 0 || mCols == 0)
 			return T();
-		double val = aval();
-		double sum = std::accumulate(mData.begin(), mData.end(), 0, [&](double v1, T v){
+		T val = aval();
+		T sum = std::accumulate(mData.begin(), mData.end(), T(0.0), [&](T v1, T v){
 			return v1 + (v - val)*(v - val);
 		});
 		return sum / (mRows*mCols);
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
-	double MMatrixSheet<T, Property, A, C>::standardiff_if(double avl) const
+	T MMatrixSheet<T, Property, A, C>::standardiff_if(const_reference_type avl) const
 	{
 		if (mRows == 0 || mCols == 0)
 			return T();
@@ -2216,11 +3434,11 @@ namespace mj{
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
-	double MMatrixSheet<T, Property, A, C>::squaldiff_if(double avl) const
+	T MMatrixSheet<T, Property, A, C>::squaldiff_if(const_reference_type avl) const
 	{
 		if (mRows == 0 || mCols == 0)
 			return T();
-		double sum = std::accumulate(mData.begin(), mData.end(), 0, [&](double v1, T v){
+		T sum = std::accumulate(mData.begin(), mData.end(), T(0.0), [&](T v1, T v){
 			return v1 + (v - avl)*(v - avl);
 		});
 		return sum / (mRows*mCols);
@@ -2311,12 +3529,12 @@ namespace mj{
 		}
 		if (temp.empty())
 			return T();
-		return std::accumulate(temp.begin(), temp.end(), 0);
+		return std::accumulate(temp.begin(), temp.end(), T(0.0));
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
 	template<class cmp>
-	double MMatrixSheet<T, Property, A, C>::aval(const_reference_type excepty, cmp prd) const
+	T MMatrixSheet<T, Property, A, C>::aval(const_reference_type excepty, cmp prd) const
 	{
 		std::vector<T> temp;
 		for (auto& v : mData){
@@ -2327,12 +3545,12 @@ namespace mj{
 		}
 		if (temp.empty())
 			return T();
-		return std::accumulate(temp.begin(), temp.end(), 0) / temp.size();
+		return std::accumulate(temp.begin(), temp.end(), T(0.0)) / temp.size();
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
 	template<class cmp>
-	double MMatrixSheet<T, Property, A, C>::standardiff(const_reference_type excepty, cmp prd) const
+	T MMatrixSheet<T, Property, A, C>::standardiff(const_reference_type excepty, cmp prd) const
 	{
 		std::vector<T> temp;
 		for (auto& v : mData){
@@ -2344,8 +3562,8 @@ namespace mj{
 		if (temp.empty())
 			return T();
 
-		double val = aval(excepty, prd);
-		double sum = std::accumulate(temp.begin(), temp.end(), 0, [&](double v1, T v){
+		T val = aval(excepty, prd);
+		T sum = std::accumulate(temp.begin(), temp.end(), T(0.0), [&](T v1, T v){
 			return v1 + (v - val)*(v - val);
 		});
 		return std::sqrt(sum / (temp.size()));
@@ -2353,7 +3571,7 @@ namespace mj{
 
 	template<class T, class Property, class A, template<class, class>class C>
 	template<class cmp>
-	double MMatrixSheet<T, Property, A, C>::squaldiff(const_reference_type excepty, cmp prd) const
+	T MMatrixSheet<T, Property, A, C>::squaldiff(const_reference_type excepty, cmp prd) const
 	{
 		std::vector<T> temp;
 		for (auto& v : mData){
@@ -2365,8 +3583,8 @@ namespace mj{
 		if (temp.empty())
 			return T();
 
-		double val = aval(excepty, prd);
-		double sum = std::accumulate(temp.begin(), temp.end(), 0, [&](double v1, T v){
+		T val = aval(excepty, prd);
+		T sum = std::accumulate(temp.begin(), temp.end(), T(0.0), [&](T v1, T v){
 			return v1 + (v - val)*(v - val);
 		});
 		return sum / (temp.size());
@@ -2374,7 +3592,7 @@ namespace mj{
 
 	template<class T, class Property, class A, template<class, class>class C>
 	template<class cmp>
-	double MMatrixSheet<T, Property, A, C>::standardiff_if(double avl, const_reference_type excepty, cmp prd) const
+	T MMatrixSheet<T, Property, A, C>::standardiff_if(const_reference_type avl, const_reference_type excepty, cmp prd) const
 	{
 		std::vector<T> temp;
 		for (auto& v : mData){
@@ -2386,7 +3604,7 @@ namespace mj{
 		if (temp.empty())
 			return T();
 
-		double sum = std::accumulate(temp.begin(), temp.end(), 0, [&](double v1, T v){
+		T sum = std::accumulate(temp.begin(), temp.end(), T(0.0), [&](T v1, T v){
 			return v1 + (v - avl)*(v - avl);
 		});
 		return std::sqrt(sum / (temp.size()));
@@ -2394,7 +3612,7 @@ namespace mj{
 
 	template<class T, class Property, class A, template<class, class>class C>
 	template<class cmp>
-	double MMatrixSheet<T, Property, A, C>::squaldiff_if(double avl, const_reference_type excepty, cmp prd) const
+	T MMatrixSheet<T, Property, A, C>::squaldiff_if(const_reference_type  avl, const_reference_type excepty, cmp prd) const
 	{
 		std::vector<T> temp;
 		for (auto& v : mData){
@@ -2406,7 +3624,7 @@ namespace mj{
 		if (temp.empty())
 			return T();
 
-		double sum = std::accumulate(temp.begin(), temp.end(), 0, [&](double v1, T v){
+		T sum = std::accumulate(temp.begin(), temp.end(), T(0.0), [&](T v1, T v){
 			return v1 + (v - avl)*(v - avl);
 		});
 		return sum / (temp.size());
@@ -2416,7 +3634,7 @@ namespace mj{
 	// 打印
 	//
 	template<class T, class Property, class A, template<class, class>class C>
-	void MMatrixSheet<T, Property, A, C>::print(const char* msg, std::ostream& os){
+	void MMatrixSheet<T, Property, A, C>::print(const char* msg, std::ostream& os) const{
 		os << msg << "[rows=" << mRows << "; cols=" << mCols << "]" << std::endl;
 		for (unsigned i = 0; i < mRows; ++i){
 			for (unsigned j = 0; j < mCols; ++j){
@@ -2510,7 +3728,7 @@ namespace mj{
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
-	void MMatrixSheet<T, Property, A, C>::save(const char* filename, bool isbinary)
+	void MMatrixSheet<T, Property, A, C>::save(const char* filename, bool isbinary) const
 	{
 		if (isbinary){
 			std::ofstream outFile(filename, std::ios_base::binary);
@@ -2565,7 +3783,7 @@ namespace mj{
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
-	__int64 MMatrixSheet<T, Property, A, C> ::save(std::ostream& os, bool isbinary)
+	__int64 MMatrixSheet<T, Property, A, C> ::save(std::ostream& os, bool isbinary) const
 	{
 		if (isbinary){
 			os.write((char*)(&mRows), sizeof(mRows));
@@ -2610,7 +3828,7 @@ namespace mj{
 	}
 
 	template<class T, class Property, class A, template<class, class>class C>
-	void MMatrixSheet<T, Property, A, C>::save(std::ostream& os, char spliter){
+	void MMatrixSheet<T, Property, A, C>::save(std::ostream& os, char spliter) const{
 		if (spliter == '\t' || spliter == ' '){
 			save(os, false);
 			return;
@@ -2674,6 +3892,33 @@ namespace mj{
 		for (unsigned i = 0; i < mRows; ++i){
 			for (unsigned j = 0; j < mCols; ++j){
 				outmat(i, j) = std::abs((*this)(i, j));
+			}
+		}
+		return outmat;
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	template<class U, class A2>
+	MMatrixSheet<U, Property, A2, C> MMatrixSheet<T, Property, A, C>::abs() const
+	{
+		MMatrixSheet<U, Property, A2, C> outmat;
+		outmat.resize(mRows, mCols);
+		for (unsigned i = 0; i < mRows; ++i){
+			for (unsigned j = 0; j < mCols; ++j){
+				outmat(i, j) = std::abs((*this)(i, j));
+			}
+		}
+		return outmat;
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	template<class U, class A2 >
+	MMatrixSheet<U, Property, A2, C> MMatrixSheet<T, Property, A, C>::sqrt() const{
+		MMatrixSheet<U, Property, A2, C> outmat;
+		outmat.resize(mRows, mCols);
+		for (unsigned i = 0; i < mRows; ++i){
+			for (unsigned j = 0; j < mCols; ++j){
+				outmat(i, j) = std::sqrt(U((*this)(i, j)));
 			}
 		}
 		return outmat;
@@ -2788,6 +4033,133 @@ namespace mj{
 		for (unsigned i = 0; i < mRows; ++i){
 			for (unsigned j = 0; j < mCols; ++j){
 				outmat(i, j) = (*this)(i, j)/180.0*mj::PI;
+			}
+		}
+		return outmat;
+	}
+
+
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::pow(const_reference_type n) const{
+		MMatrixSheet outmat;
+		outmat.resize(mRows, mCols);
+		for (unsigned i = 0; i < mRows; ++i){
+			for (unsigned j = 0; j < mCols; ++j){
+				outmat(i, j) = std::pow((*this)(i, j) ,n);
+			}
+		}
+		return outmat;
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::floor() const{
+		MMatrixSheet outmat;
+		outmat.resize(mRows, mCols);
+		for (unsigned i = 0; i < mRows; ++i){
+			for (unsigned j = 0; j < mCols; ++j){
+				outmat(i, j) = std::floor((*this)(i, j));
+			}
+		}
+		return outmat;
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::round() const{
+		MMatrixSheet outmat;
+		outmat.resize(mRows, mCols);
+		for (unsigned i = 0; i < mRows; ++i){
+			for (unsigned j = 0; j < mCols; ++j){
+				outmat(i, j) = std::round((*this)(i, j));
+			}
+		}
+		return outmat;
+	}
+
+
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::replace_min(const_reference_type val) const{
+		MMatrixSheet outmat;
+		outmat.resize(mRows, mCols);
+		for (unsigned i = 0; i < mRows; ++i){
+			for (unsigned j = 0; j < mCols; ++j){
+				outmat(i, j) = min((*this)(i, j),val);
+			}
+		}
+		return outmat;
+	}
+
+
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::replace_max(const_reference_type val) const{
+		MMatrixSheet outmat;
+		outmat.resize(mRows, mCols);
+		for (unsigned i = 0; i < mRows; ++i){
+			for (unsigned j = 0; j < mCols; ++j){
+				outmat(i, j) = max((*this)(i, j), val);
+			}
+		}
+		return outmat;
+	}
+
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::matSum() const{
+		MMatrixSheet outmat;
+		if (mRows == 1 || mCols == 1)
+		{
+			outmat.resize(1, 1);
+			outmat(0, 0) = sum();
+			return outmat;
+		}
+
+		outmat.resize(1, mCols);
+
+		for (unsigned icol = 0; icol < mCols; icol++)
+		{
+			TL::Vector<T> vCol = col(icol);
+			outmat(0, icol) = vCol.sum_value();
+		}
+		return outmat;
+	}
+
+
+	template<class T, class Property, class A, template<class, class>class C>
+	MMatrixSheet<T, Property, A, C> MMatrixSheet<T, Property, A, C>::prod() const{
+		MMatrixSheet outmat;
+		if (mRows == 1 || mCols == 1)
+		{
+			outmat.resize(1, 1);
+			T outVal;
+			for (int i = 0; i < size(); i++)
+			{
+				if (i == 0)
+				{
+					outVal = (*this)(i);
+				}
+				else
+				{
+					outVal *= (*this)(i);
+				}
+			}
+			outmat(0, 0) = outVal;
+		}
+		else
+		{
+			outmat.resize(1, mCols);
+			for (unsigned icol = 0; icol < mCols; icol++)
+			{
+				T outVal;
+				for (unsigned irow = 0; irow < mRows; irow++)
+				{
+					if (irow == 0)
+					{
+						outVal = (*this)(irow, icol);
+					}
+					else
+					{
+						outVal *= (*this)(irow, icol);
+					}
+				}
+				outmat(0, icol) = outVal;
 			}
 		}
 		return outmat;
@@ -2913,33 +4285,36 @@ namespace mj{
 	typedef MMatrixSheet<std::complex<int>> cx_imat;
 	typedef MMatrixSheet<std::complex<double>> cx_dmat;
 	typedef MMatrixSheet<std::complex<float>> cx_fmat;
+	typedef MMatrixSheet<Complex<double>> mcx_dmat;  // 可以实现快速计算
+	typedef MMatrixSheet<Complex<float>>  mcx_fmat;  // 可以实现快速计算
+	typedef MMatrixSheet<Complex<int>>  mcx_imat;  // 可以实现快速计算
+	typedef std::complex<double> cv_dvalue;
+	typedef std::complex<float> cv_fvalue;
+	typedef std::complex<int> cv_ivalue;
+	typedef Complex<double> mcv_dvalue;
+	typedef Complex<float> mcv_fvalue;
+	typedef Complex<int> mcv_ivalue;
 }// namespace mj
 
 
-#include <HMath.h>
+
+
+
+//+------------------------------------------------------------
+//
 //
 // 封装几个常用函数
+// 主要还是为了更方便复数计算
 //
+//
+//+-------------------------------------------------------------
 namespace mjmat{
 
-	//
-	// 定义一个常量
-	//
-	const static std::complex<double> MI = std::sqrt(std::complex<double>(-1));
 
-	template<class T>
-	static inline mj::cx_dmat sqrt(const mj::MMatrixSheet<T>& mat){
-		mj::cx_dmat outmat;
-		outmat.resize(mat.rows(), mat.cols());
-		for (int i = 0; i < mat.rows(); ++i){
-			for (int j = 0; j < mat.cols(); ++j){
-				std::complex<double> cp(mat(i, j));
-				outmat(i, j) = std::sqrt(cp);
-			}
-		}
-		return outmat;
-	}
-
+	//
+	// 计算绝对值
+	// 对于复数来说绝对值就是模长
+	//
 	template<class T>
 	static inline mj::MMatrixSheet<T> abs(const mj::MMatrixSheet<T>& mat){
 		mj::MMatrixSheet<T> outmat;
@@ -2952,6 +4327,54 @@ namespace mjmat{
 		return outmat;
 	}
 
+	
+	template<class T>
+	static inline mj::MMatrixSheet<T> abs(const mj::MMatrixSheet<std::complex<T>>& mat){
+		mj::MMatrixSheet<T> outmat;
+		outmat.resize(mat.rows(), mat.cols());
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				outmat(i, j) = std::abs(mat(i, j));
+			}
+		}
+		return outmat;
+	}
+
+	
+
+	//
+	// 对一个矩阵进行开根号
+	// 返回复矩阵
+	// 如果确定只需要实数那么获取实部即可
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<std::complex<T>>  sqrt(const mj::MMatrixSheet<T>& mat){
+		mj::MMatrixSheet<std::complex<T>> outmat;
+		outmat.resize(mat.rows(), mat.cols());
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				outmat(i, j) = std::sqrt(std::complex<T>(mat(i, j)));
+			}
+		}
+		return outmat;
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<std::complex<T>>  sqrt(const mj::MMatrixSheet<std::complex<T>>& mat){
+		mj::MMatrixSheet<std::complex<T>> outmat;
+		outmat.resize(mat.rows(), mat.cols());
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				outmat(i, j) = std::sqrt(mat(i, j));
+			}
+		}
+		return outmat;
+	}
+
+
+	//
+	// 矩阵平方
+	//
 	template<class T>
 	static inline mj::MMatrixSheet<T> square(const mj::MMatrixSheet<T>& mat){
 		mj::MMatrixSheet<T> outmat;
@@ -2988,6 +4411,10 @@ namespace mjmat{
 		}
 	}
 
+
+	//
+	// 使用指定值填充矩阵
+	//
 	template<class T>
 	static inline mj::MMatrixSheet<T> fill(int row, int col, const T& val){
 		mj::MMatrixSheet<T> mat;
@@ -2995,6 +4422,8 @@ namespace mjmat{
 		mat.fill(val);
 		return mat;
 	}
+
+
 
 	static inline mj::dmat one(int row, int col){
 		mj::dmat mat;
@@ -3010,10 +4439,46 @@ namespace mjmat{
 		return mat;
 	}
 
+	//
+	// 使用随机数填充矩阵
+	//
 	static inline mj::dmat rand(int row, int col,double minval = -1.0,double maxval = 1.0){
 		mj::dmat mat;
 		mat.resize(row, col);
-		mj::GenRandom<double> gen(minval, maxval);
+		static mj::GenRandom<double> gen(minval, maxval);
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				mat(i, j) = gen();
+			}
+		}
+		return mat;
+	}
+
+	//
+	// 泛型的操作
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<T> one(int row, int col){
+		mj::MMatrixSheet<T> mat;
+		mat.resize(row, col);
+		mat.fill(1);
+		return mat;
+	}
+
+
+	template<class T>
+	static inline mj::MMatrixSheet<T> zero(int row, int col){
+		mj::MMatrixSheet<T> mat;
+		mat.resize(row, col);
+		mat.fill(0);
+		return mat;
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<T> rand(int row, int col, double minval = -1.0, double maxval = 1.0){
+		mj::MMatrixSheet<T> mat;
+		mat.resize(row, col);
+		static mj::GenRandom<T> gen(minval, maxval);
 		for (int i = 0; i < mat.rows(); ++i){
 			for (int j = 0; j < mat.cols(); ++j){
 				mat(i, j) = gen();
@@ -3024,7 +4489,465 @@ namespace mjmat{
 
 
 	//
+	// 由幅值相位转换到实部虚部
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<std::complex<T>> amph_to_complex(const mj::MMatrixSheet<std::complex<T>>& m,double base = 20.0){
+		mj::MMatrixSheet<std::complex<T>> mat;
+		mat.resize(m.rows(), m.cols());
+		mj::MMatrixSheet<T> __abs = m.real();
+		__abs.transform([=](T val){
+			return std::pow(10.0, val / base);
+		});
+		mj::MMatrixSheet<T> __arg = m.imag();
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				mat(i, j) = std::complex<double>(__abs(i, j)*std::cos(__arg(i, j) / 180.0*mj::PI), __abs(i, j)*std::sin(__arg(i, j) / 180.0*mj::PI));
+			}
+		}
+		return mat;
+	}
+
+
+	//
+	// 由实部虚部转换到幅度相位
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<std::complex<T>> complex_to_amph(const mj::MMatrixSheet<std::complex<T>>& m,double base = 20.0){
+		mj::MMatrixSheet<std::complex<T>> mat;
+		mat.resize(m.rows(), m.cols());
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				mat(i, j) = std::complex<double>(base*std::log10(std::abs(m(i, j))), std::arg(m(i, j)/mj::PI*180.0));
+			}
+		}
+		return mat;
+	}
+
+
+
+	//
+	// dim == 0 查找每列的最小值
+	// dim == 1 查找每行的最小值
+	// 大于等于2查找最小值
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<T> min_ele(const mj::MMatrixSheet<T>& m, int dim = 0){
+		mj::MMatrixSheet<T> res;
+		if (dim == 0){
+			res.resize(1, m.cols());
+			int rows = m.rows();
+			for (int i = 0; i < m.cols(); ++i){
+				auto it = m.reference_obj().begin();
+				res(0, i) = *(std::min_element(it + i*rows, it + (i + 1)*rows));
+			}
+		}
+		else if (dim == 1){
+			res.resize(m.rows(), 1);
+			for (int i = 0; i < m.rows(); ++i){
+				std::vector<T> rowdata = m.row(i);
+				res(i, 0) = *(std::min_element(rowdata.begin(), rowdata.end()));
+			}
+		}
+		else if (dim >= 2){
+			res.resize(1, 1);
+			res(0, 0) = *(std::min_element(m.reference_obj().begin(), m.reference_obj().end()));
+		}
+		return res;
+	}
+
+
+	//
+	// dim == 0 查找每列的最大值
+	// dim == 1 查找每行的最大值
+	// 大于等于2查找最大值
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<T> max_ele(const mj::MMatrixSheet<T>& m, int dim = 0){
+		mj::MMatrixSheet<T> res;
+		if (dim == 0){
+			res.resize(1, m.cols());
+			int rows = m.rows();
+			for (int i = 0; i < m.cols(); ++i){
+				auto it = m.reference_obj().begin();
+				res(0, i) = *(std::max_element(it + i*rows, it + (i + 1)*rows));
+			}
+		}
+		else if (dim == 1){
+			res.resize(m.rows(), 1);
+			for (int i = 0; i < m.rows(); ++i){
+				std::vector<T> rowdata = m.row(i);
+				res(i, 0) = *(std::max_element(rowdata.begin(), rowdata.end()));
+			}
+		}
+		else if (dim >= 2){
+			res.resize(1, 1);
+			res(0, 0) = *(std::max_element(m.reference_obj().begin(), m.reference_obj().end()));
+		}
+		return res;
+	}
+
+
+	//
+	// dim == 0 计算每列的总和
+	// dim == 1 计算每行的总和
+	// 大于等于2计算所有数据
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<T> sum(const mj::MMatrixSheet<T>& m, int dim = 0){
+		mj::MMatrixSheet<T> res;
+		if (dim == 0){
+			res.resize(1, m.cols());
+			int rows = m.rows();
+			for (int i = 0; i < m.cols(); ++i){	
+				auto it = m.reference_obj().begin();
+				res(0, i) = std::accumulate(it + i*rows, it + (i + 1)*rows, T(0.0));
+			}
+		}
+		else if (dim == 1){
+			res.resize(m.rows(), 1);
+			for (int i = 0; i < m.rows(); ++i){
+				std::vector<T> rowdata = m.row(i);
+				res(i, 0) = std::accumulate(rowdata.begin(), rowdata.end(), T(0.0));
+			}
+		}
+		else if (dim >= 2){
+			res.resize(1, 1);
+			res(0, 0) = std::accumulate(m.reference_obj().begin(), m.reference_obj().end(), T(0.0));
+		}
+		return res;
+	}
+
+
+	//
+	// dim == 0 计算每列的积分
+	// dim == 1 计算每行的积分
+	// 大于等于2全积分
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<T> trapz(const mj::MMatrixSheet<T>& m, int dim = 0){
+		mj::MMatrixSheet<T> res;
+		if (dim == 0){
+			int N = m.rows();
+			if (m.rows() <= 1){
+				res.resize(1, N);
+				return res;
+			}
+			mj::MMatrixSheet<T> up = m.rows(0, N - 1);
+			mj::MMatrixSheet<T> down = m.rows(1, N);
+			res = sum((0.5 * (up + down)), 0);
+		}
+		else if (dim == 1){
+			int N = m.cols();
+			if (m.cols() <= 1){
+				res.resize(N, 1);
+				return res;
+			}
+			mj::MMatrixSheet<T> left = m.cols(0, N - 1);
+			mj::MMatrixSheet<T> right = m.cols(1, N);
+			res = sum((0.5 * (left + right)), 1);
+		}
+		else if (dim >= 2){
+			return trapz(trapz(m), 1);
+		}
+		return res;
+	}
+
+	//
+	// 傅里叶矩阵
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> fftm(int N,double sig = -1){
+		mj::MMatrixSheet<mj::Complex<T>> mat;
+		mat.resize(N, N);
+		double theta = 2 * mj::PI / N;
+		try{
+			throw "Error";
+			concurrency::array_view<mj::Complex<T>, 2> vcols(mat.rows(), mat.cols(), mat.reference_obj());
+			concurrency::parallel_for_each(vcols.extent, [=](concurrency::index<2> idx) restrict(amp){
+				unsigned r = idx[0];
+				unsigned c = idx[1];
+				double angle = c*r*theta;
+				vcols(c, r)._real = concurrency::fast_math::cos(angle);
+				vcols(c, r)._imag = concurrency::fast_math::sin(angle)*sig;
+			});
+			vcols.synchronize();
+			vcols(0, 0);
+		}
+		catch (...){
+			for (int i = 0; i < N; ++i){
+				for (int j = 0; j < N; ++j){
+					double angle = i*j*theta;
+					mat(i, j)._real = std::cos(angle);
+					mat(i, j)._imag = std::sin(angle)*sig;
+				}
+			}
+		}
+		return mat;
+	}
+
+	//
+	// 傅里叶逆矩阵
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> ifftm(int N){
+		mj::MMatrixSheet<mj::Complex<T>> mat;
+		mat.resize(N, N);
+		double theta = 2 * mj::PI / N;
+		try{
+			throw "Error";
+			concurrency::array_view<mj::Complex<T>, 2> vcols(mat.rows(), mat.cols(), mat.reference_obj());
+			concurrency::parallel_for_each(vcols.extent, [=](concurrency::index<2> idx) restrict(amp){
+				unsigned r = idx[0];
+				unsigned c = idx[1];
+				double angle = c*r*theta;
+				vcols(c, r)._real = concurrency::fast_math::cos(angle) / N;
+				vcols(c, r)._imag = concurrency::fast_math::sin(angle) / N;
+			});
+			vcols.synchronize();
+			vcols(0, 0);
+		}
+		catch (...){
+			for (int i = 0; i < N; ++i){
+				for (int j = 0; j < N; ++j){
+					double angle = i*j*theta;
+					mat(i, j)._real = std::cos(angle) / N;
+					mat(i, j)._imag = std::sin(angle) / N;
+				}
+			}
+		}
+		
+		return mat;
+	}
+
+
+	//
+	// 傅里叶变换
+	// N 行数
+	// M 列数
+	//
+	template<class T>
+	static inline std::vector<mj::Complex<T>> fft(const std::vector<mj::Complex<T>>& vec, int N){
+		mj::MMatrixSheet<mj::Complex<T>> fm = fftm<T>(N);
+		mj::MMatrixSheet<mj::Complex<T>> tempm;
+		tempm.resize(N, 1);
+		for (int i = 0; i < vec.size(); ++i){
+			tempm(i, 0) = vec.at(i);
+		}
+		tempm = fm%tempm;
+		return tempm.dettach();
+	}
+
+	//
+	// 一维傅里叶矩阵变换
+	// N = 1 每列进行变换
+	// N = 2 每行进行变换
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> fft(const mj::MMatrixSheet<mj::Complex<T>>& m, int N = 1){
+		mj::MMatrixSheet<mj::Complex<T>> tempm = m;
+		if (N == 1){
+			mj::MMatrixSheet<mj::Complex<T>> fm = fftm<T>(tempm.rows());
+			tempm = fm%tempm;
+		}
+		else{
+			tempm = tempm.t();
+			mj::MMatrixSheet<mj::Complex<T>> fm = fftm<T>(tempm.rows());
+			tempm = fm%tempm;
+			tempm = tempm.t();
+		}
+		return tempm;
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> fft(const mj::MMatrixSheet<T>& m, int N = 1){
+		return fft(mj::MMatrixSheet<mj::Complex<T>>(m), N);
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> fft(const mj::MMatrixSheet<std::complex<T>>& m, int N = 1){
+		return fft(mj::MMatrixSheet<mj::Complex<T>>(m), N);
+	}
+
+
+	//
+	// 二维傅里叶变换
+	// N = 1 每行进行变换
+	// M = 1 每列进行变换
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> fft2(const mj::MMatrixSheet<mj::Complex<T>>& m, int N = -1, int M = -1){
+		if (N == -1){
+			N = m.rows();
+		}
+
+		if (M == -1){
+			M = m.cols();
+		}
+		mj::MMatrixSheet<mj::Complex<T>> fm = fftm<T>(M);
+		mj::MMatrixSheet<mj::Complex<T>> tempm = m;
+		
+		if (N == 1){
+			//
+			// 行变换
+			//
+			if (tempm.cols() != M){
+				tempm.resize(tempm.rows(), M);
+			}
+			tempm = tempm.t();
+			tempm = fm%tempm;
+			return tempm.t();
+		}
+		else if (M == 1){
+			//
+			// 列变换
+			//
+			fm = fftm<T>(N);
+			if (N != tempm.rows()){
+				tempm.resize(N, tempm.cols());
+			}
+
+			tempm = fm%tempm;
+			return tempm;
+		}
+		
+		//
+		// 全变换
+		//
+		tempm.resize(N, M);
+		tempm = tempm.t();
+		tempm = fm%tempm;
+		tempm = tempm.t();
+		fm = fftm<T>(N);
+		tempm = fm%tempm;
+		return tempm;
+	}
+
+
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> fft2(const mj::MMatrixSheet<T>& m, int N = -1, int M = -1){
+		return fft2(mj::MMatrixSheet<mj::Complex<T>>(m), N, M);
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> fft2(const mj::MMatrixSheet<std::complex<T>>& m, int N = -1, int M = -1){
+		return fft2(mj::MMatrixSheet<mj::Complex<T>>(m), N, M);
+	}
+
+	template<class T>
+	static inline std::vector<mj::Complex<T>> ifft(const std::vector<mj::Complex<T>>& vec, int N){
+		mj::MMatrixSheet<mj::Complex<T>> fm = ifftm<T>(N);
+		mj::MMatrixSheet<mj::Complex<T>> tempm;
+		tempm.resize(N, 1);
+		for (int i = 0; i < vec.size(); ++i){
+			tempm(i, 0) = vec.at(i);
+		}
+		tempm = fm%tempm;
+		return tempm.dettach();
+	}
+
+	//
+	// 一维傅里叶矩阵变换
+	// N = 1 每列进行变换
+	// N = 2 每行进行变换
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> ifft(const mj::MMatrixSheet<mj::Complex<T>>& m, int N = 1){
+		mj::MMatrixSheet<mj::Complex<T>> tempm = m;
+		if (N == 1){
+			mj::MMatrixSheet<mj::Complex<T>> fm = ifftm<T>(tempm.rows());
+			tempm = fm%tempm;
+		}
+		else{
+			tempm = tempm.t();
+			mj::MMatrixSheet<mj::Complex<T>> fm = ifftm<T>(tempm.rows());
+			tempm = fm%tempm;
+			tempm = tempm.t();
+		}
+		return tempm;
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> ifft(const mj::MMatrixSheet<T>& m, int N = 1){
+		return ifft(mj::MMatrixSheet<mj::Complex<T>>(m), N);
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> ifft(const mj::MMatrixSheet<std::complex<T>>& m, int N = 1){
+		return ifft(mj::MMatrixSheet<mj::Complex<T>>(m), N);
+	}
+
+
+	//
+	// 二维傅里叶变换
+	// N = 1 每行进行变换
+	// M = 1 每列进行变换
+	//
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> ifft2(const mj::MMatrixSheet<mj::Complex<T>>& m, int N = -1, int M = -1){
+		if (N == -1){
+			N = m.rows();
+		}
+
+		if (M == -1){
+			M = m.cols();
+		}
+
+		mj::MMatrixSheet<mj::Complex<T>> fm = ifftm<T>(M);
+		mj::MMatrixSheet<mj::Complex<T>> tempm = m;
+		
+		if (N == 1){
+			//
+			// 行变换
+			//
+			if (M != tempm.cols()){
+				tempm.resize(tempm.rows(), M);
+			}
+			tempm = tempm.t();
+			tempm = fm%tempm;
+			return tempm.t();
+		}
+		else if (M == 1){
+			//
+			// 列变换
+			//
+			if (N != tempm.rows()){
+				tempm.resize(N, tempm.cols());
+			}
+			fm = ifftm<T>(N);
+			tempm = fm%tempm;
+			return tempm;
+		}
+
+		//
+		// 全变换
+		//
+		tempm.resize(N, M);
+		tempm = tempm.t();
+		tempm = fm%tempm;
+		tempm = tempm.t();
+		fm = ifftm<T>(N);
+		tempm = fm%tempm;
+		return tempm;
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> ifft2(const mj::MMatrixSheet<T>& m, int N = -1, int M = -1){
+		return ifft2(mj::MMatrixSheet<mj::Complex<T>>(m), N, M);
+	}
+
+	template<class T>
+	static inline mj::MMatrixSheet<mj::Complex<T>> ifft2(const mj::MMatrixSheet<std::complex<T>>& m, int N = -1, int M = -1){
+		return ifft2(mj::MMatrixSheet<mj::Complex<T>>(m), N, M);
+	}
+
+
+
+	//
 	// e(iθ)
+	// sign 表示正负号
+	// e(iθ) = cos(θ) + sign*sin(θ)
+	// 针对矩阵
 	//
 	static inline mj::cx_dmat exp(const mj::dmat& mat,int sign = 1){
 		mj::cx_dmat outmat;
@@ -3040,6 +4963,24 @@ namespace mjmat{
 	}
 
 
+	static inline mj::cx_dmat exp(const mj::cx_dmat& mat, int sign = 1){
+		mj::cx_dmat outmat;
+		outmat.resize(mat.rows(), mat.cols());
+		for (int i = 0; i < mat.rows(); ++i){
+			for (int j = 0; j < mat.cols(); ++j){
+				std::complex<double> val = mat(i, j);
+				std::complex<double> ex(std::cos(val.real()), sign*std::sin(val.real()));
+				std::complex<double> cp(std::cos(val.imag()), sign*std::sin(val.imag()));
+				outmat(i, j) = ex*cp;
+			}
+		}
+		return outmat;
+	}
+
+
+	//
+	// 针对向量
+	//
 	static inline std::vector<std::complex<double>> exp(const std::vector<double>& mat, int sign = 1){
 		std::vector<std::complex<double>> outmat;		
 		for (int j = 0; j < mat.size(); ++j){
@@ -3050,12 +4991,18 @@ namespace mjmat{
 		return outmat;
 	}
 
+	//
+	// 针对某个值
+	//
 	static inline std::complex<double> exp(double val, int sign = 1){
 		std::complex<double> cp(std::cos(val), sign*std::sin(val));
 		return cp;
 	}
 
 
+	//
+	// 参数为角度
+	// 
 	static inline double sind(double angle){
 		return std::sin(angle / 180.0*mj::PI);
 	}
@@ -3063,4 +5010,122 @@ namespace mjmat{
 	static inline double cosd(double angle){
 		return std::cos(angle / 180.0*mj::PI);
 	}
+}
+
+
+
+
+//+------------------------------------------------------
+//
+//
+// 针对复数进行大小比较特化
+// 原本标准库不支持该操作
+// 之所以要这么干主要有时候会用到数据比较
+// 当然主要是判断两组数据是否相等
+// cx_dmat m1,m2;
+// ...
+// cx_dmat m3 = m1 - m2;
+// auto minval = m3.min_value();
+// auto maxval = m3.max_value();
+// bool iseq = minval == maxval;
+//
+//
+//+---------------------------------------------------------
+namespace std{
+
+	template<class T>
+	static inline bool operator<(const std::complex<T>& left, const std::complex<T>& right){
+		if (left.real() >  right.real()){
+			return false;
+		}
+		else if (left.real() >= right.real() && left.real() <= right.real()){
+			return left.imag() < right.imag();
+		}
+		else{
+			return true;
+		}
+	}
+
+	template<class T>
+	static inline bool operator>(const std::complex<T>& left, const std::complex<T>& right){
+		if (left.real() <  right.real()){
+			return false;
+		}
+		else if (left.real() >= right.real() && left.real() <= right.real()){
+			return left.imag() > right.imag();
+		}
+		else{
+			return false;
+		}
+	}
+
+	template<class T>
+	struct less<std::complex<T>>
+		: public binary_function<std::complex<T>, std::complex<T>, bool>
+	{	
+		bool operator()(const std::complex<T>& _Left, const std::complex<T>& _Right) const
+		{	
+			return (_Left < _Right);
+		}
+	};
+
+	template<class T>
+	struct greater<std::complex<T>>
+		: public binary_function<std::complex<T>, std::complex<T>, bool>
+	{
+		bool operator()(const std::complex<T>& _Left, const std::complex<T>& _Right) const
+		{
+			return (_Left > _Right);
+		}
+	};
+
+
+	//
+	//+----------------------------------------------------------------------------------------
+	//
+	template<class T>
+	static inline bool operator<(const mj::Complex<T>& left, const mj::Complex<T>& right){
+		if (left.real() >  right.real()){
+			return false;
+		}
+		else if (left.real() >= right.real() && left.real() <= right.real()){
+			return left.imag() < right.imag();
+		}
+		else{
+			return true;
+		}
+	}
+
+	template<class T>
+	static inline bool operator>(const mj::Complex<T>& left, const mj::Complex<T>& right){
+		if (left.real() <  right.real()){
+			return false;
+		}
+		else if (left.real() >= right.real() && left.real() <= right.real()){
+			return left.imag() > right.imag();
+		}
+		else{
+			return false;
+		}
+	}
+
+	template<class T>
+	struct less<mj::Complex<T>>
+		: public binary_function<mj::Complex<T>, mj::Complex<T>, bool>
+	{
+		bool operator()(const mj::Complex<T>& _Left, const mj::Complex<T>& _Right) const
+		{
+			return (_Left < _Right);
+		}
+	};
+
+	template<class T>
+	struct greater<mj::Complex<T>>
+		: public binary_function<mj::Complex<T>, mj::Complex<T>, bool>
+	{
+		bool operator()(const mj::Complex<T>& _Left, const mj::Complex<T>& _Right) const
+		{
+			return (_Left > _Right);
+		}
+	};
 }

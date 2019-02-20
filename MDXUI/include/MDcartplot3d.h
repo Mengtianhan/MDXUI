@@ -34,6 +34,7 @@
 #include "DxPushButton.h"
 #include "DxRadioButton.h"
 #include "DxComboBox.h"
+#include "DxColorPalette.h"
 
 using DxUI::MMeshData;
 using DxUI::DxColor;
@@ -176,9 +177,14 @@ protected:
 	// +-----------------------------------------------------------
 	//
 protected:
-	void OnRightButtonClicked(int row, int col, DxUI::DxPointI pos, DxUI::CDxWidget* sender);
-	void OnAction(bool isClicked, DxUI::CDxWidget* sender);
-	void OnButton(bool isClicked, DxUI::CDxWidget* sender);
+	void	OnRightButtonClicked(int row, int col, DxUI::DxPointI pos, DxUI::CDxWidget* sender);
+	void	OnAction(bool isClicked, DxUI::CDxWidget* sender);
+	void	OnButton(bool isClicked, DxUI::CDxWidget* sender);
+
+	void	OnButton2(bool isClicked, CDxWidget* sender);
+	void	OnButtonTemplate(DxUI::CDxPushButton* button);
+	void	OnCheckBox(bool isClicked, CDxWidget* sender);
+	void	OnValueChanged(double val, CDxWidget* sender);
 
 	CDxTableWindow					mDataTable;
 	CDxPopWindow					mPopWindow;
@@ -201,5 +207,41 @@ protected:
 	int								m_SelCol{ -1 };
 	CDxPopWindow					mPlotPopWindow;
 	MPlotWindow*					p_PlotWindow{ nullptr };
+
+	//
+	//+--------------------------------------------------------
+	//
+	DxUI::CDxPopWindow				mCanvaSetWindow;
+	DxUI::CDxColorPalette			mColorPalette;
+	DxUI::CDxRadioButton			mBackgroundColRad;
+	DxUI::CDxRadioButton			mTitileColorRad;
+	DxUI::CDxPushButton				mSetButton;
+
+
+	DxUI::CDxPushButton				mExportButton;
+	DxUI::CDxPushButton				mCopyButton;
+	DxUI::CDxPushButton				mFileButton;
+	DxUI::CDxPushButton				mPasterButton;
+
+	//
+	// 锁定颜色映射值范围
+	//
+	DxUI::CDxCheckBox				mLockMinValBox;
+	DxUI::CDxCheckBox				mLockMaxValBox;
+	DxUI::CDxSpinBox				mMinValBox;
+	DxUI::CDxSpinBox				mMaxValBox;
+
+	//
+	// 修改标题
+	//
+	DxUI::CDxEdit					mTitleEdit;
+	DxUI::CDxEdit					mXTitleEdit;
+	DxUI::CDxEdit					mYTitleEdit;
+	DxUI::CDxEdit					mZTitleEdit;
+
+	DxUI::CDxPushButton				mModifyTitleButton;
+	DxUI::CDxPushButton				mModifyXTitleButton;
+	DxUI::CDxPushButton				mModifyYTitleButton;
+	DxUI::CDxPushButton				mModifyZTitleButton;
 };
 

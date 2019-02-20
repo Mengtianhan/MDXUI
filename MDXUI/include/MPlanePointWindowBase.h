@@ -49,6 +49,7 @@ public:
 
 //
 // 绘制二维顶点
+// SizeBox 修改顶点空白
 //
 class DXUI_API MPlanePointWindowBase :
 	public CDxWindow
@@ -158,7 +159,7 @@ protected:
 	bool		OnNotify(DxUI::DXNotifyUI* NotifyEvent);
 	void		OnDealSelectedChanged(int curindex, int preindex, CDxWidget* sender);
 	void		UpdatePointArea();
-
+	void		UnInitResource();
 protected:
 	TL::Vector<MPointType>   m_Points; // 原始顶点
 	TL::Vector<MPointType>   mNormalData;  // 归一化后的顶点
@@ -227,6 +228,7 @@ protected:
 	DxRectD						mBoundRect;
 	DxUI::CDxColorMap			mColorMap;
 	CDxEffects					mPointEffects;
+	CDxEffects					m_HelpEffects;
 	XMFLOAT4X4					mTransmat; // 变换矩阵
 
 	//

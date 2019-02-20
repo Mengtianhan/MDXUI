@@ -163,8 +163,14 @@ namespace DxUI{
 		//
 		static TL::Vector<std::complex<double>>  fft(const TL::Vector<double>& indata, int num);
 		static TL::Vector<std::complex<double>>  fft(const TL::Vector<std::complex<double>>& indata, int num);
-		static mj::cx_dmat  fft(const mj::cx_dmat& indata, int row, int col);
-		static mj::cx_dmat  fft(const mj::dmat& indata, int row, int col);
+		static mj::cx_dmat  fft(const mj::cx_dmat& indata, int row, int col,int N = 3);
+		static mj::cx_dmat  fft(const mj::dmat& indata, int row, int col, int N = 3);
+
+		//
+		// N维傅里叶变换
+		//
+		static TL::Vector<mj::cx_dmat> fft(const TL::Vector<mj::dmat>& indata, int row = -1, int col = -1, int dim = 1);
+		static TL::Vector<mj::cx_dmat> fft(const TL::Vector<mj::cx_dmat>& indata, int row = -1, int col = -1, int dim = 1);
 
 
 		//
@@ -172,8 +178,15 @@ namespace DxUI{
 		//
 		static TL::Vector<std::complex<double>>  ifft(const TL::Vector<std::complex<double>>& indata, int num);
 		static TL::Vector<std::complex<double>>  ifft(const TL::Vector<double>& indata, int num);
-		static mj::cx_dmat  ifft(const mj::cx_dmat& indata, int row, int col);
-		static mj::cx_dmat  ifft(const mj::dmat& indata, int row, int col);
+		static mj::cx_dmat  ifft(const mj::cx_dmat& indata, int row, int col, int N = 3);
+		static mj::cx_dmat  ifft(const mj::dmat& indata, int row, int col, int N = 3);
+
+
+		//
+		// N 维傅里叶逆变换
+		//
+		static TL::Vector<mj::cx_dmat> ifft(const TL::Vector<mj::dmat>& indata, int row = -1, int col = -1, int dim = 1);
+		static TL::Vector<mj::cx_dmat> ifft(const TL::Vector<mj::cx_dmat>& indata, int row = -1, int col = -1, int dim =1);
 
 
 		//
@@ -205,7 +218,7 @@ namespace DxUI{
 
 
 		//
-		// 矩阵旋转 dim = 0是行旋转 1 列旋转 3 纵横旋转
+		// 矩阵旋转 dim = 0是列旋转 1 行旋转 3 纵横旋转
 		//
 
 		static mj::dmat ifftshift(const mj::dmat& m, int dim = 0);
@@ -213,7 +226,7 @@ namespace DxUI{
 
 
 		//
-		// 矩阵旋转 dim = 0是行旋转 1 列旋转
+		// 矩阵旋转 dim = 0是列旋转 1 行旋转
 		//
 		static mj::dmat shift(const mj::dmat& m, int N,int dim = 0);
 		static mj::cx_dmat shift(const mj::cx_dmat& m, int N,int dim = 0);
@@ -294,6 +307,23 @@ namespace DxUI{
 			const mj::cx_dmat& datas,
 			const mj::dmat& disx,
 			const TL::Vector<double>& disy);
+
+
+		//
+		// FFT 插值
+		// 
+		//  fre = 采样频率;
+		//  c = 3e8;
+		//  lamda = c / fre;
+		//  d = lamda * 2 / pi%半波长单元间距
+		//	beta = 2 * pi / lamda;
+		//  N = 16;
+		//  n = (N - 1)*d*beta + 8;
+		//  delta_phi = 180 / n;
+		//  满足以上采样定理 可以使用fft插值得到精准的高精度 值
+		//
+		static TL::Vector<double> fftinterp(const TL::Vector<double>& xs,int Npts);
+		static TL::Vector<std::complex<double>> fftinterp(const TL::Vector<std::complex<double>>& xs, int Npts);
 	};
 }
 

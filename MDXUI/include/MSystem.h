@@ -106,6 +106,30 @@ public:
 	// 检查网络是否能够ping通
 	//
 	static bool NetStatusIsOk(const MString& ip,int timeout = 1000);
+
+	//
+	// 打开文件所见所在位置
+	//
+	static void OpenFilePosition(const MString& fileName, HWND hwnd = nullptr);
+		 
+	//
+	// 执行某个文件
+	//
+	static void Exec(const MString& cmdStr);
+
+
+	//
+	// 初始化AsioNetCom组件
+	// 默认将com组件dll和exe放在同一目录
+	//
+	static void InitAsioNetCom(const MString& dllPath = L"");
+
+	//
+	// MString 里面的转换可能存在些问题
+	// 
+	//
+	static MString utf8_2_gbk(const std::string& utf8str);
+	static std::string gbk_to_utf8(const MString& gbkstr);
 private:
     static MSystem*                                     pSystemSelf;
     static bool                                         bInstanceIsThis;

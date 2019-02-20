@@ -155,6 +155,57 @@ namespace mj{
 		std::uniform_real_distribution<float> m_dist;
 	};
 
+	template<>
+	class GenRandom<std::complex<double>>{
+	public:
+		GenRandom(double min = 0.0, double max = 10000.0, __int64* tm = nullptr) :
+			m_mt(static_cast<unsigned long>(time(tm))),
+			m_dist(std::uniform_real_distribution<double>(min, max)){
+		}
+		std::complex<double> operator()(){
+			return std::complex<double>(m_dist(m_mt), m_dist(m_mt));
+		}
+
+	private:
+		std::mt19937   m_mt;
+		std::uniform_real_distribution<double> m_dist;
+	};
+
+	template<>
+	class GenRandom<std::complex<float>>{
+	public:
+		GenRandom(double min = 0.0, double max = 10000.0, __int64* tm = nullptr) :
+			m_mt(static_cast<unsigned long>(time(tm))),
+			m_dist(std::uniform_real_distribution<double>(min, max)){
+		}
+		std::complex<float> operator()(){
+			return std::complex<double>(m_dist(m_mt), m_dist(m_mt));
+		}
+
+	private:
+		std::mt19937   m_mt;
+		std::uniform_real_distribution<double> m_dist;
+	};
+
+
+	template<class T>
+	class GenRandom<std::complex<T>>{
+	public:
+		GenRandom(T min = 0, T max = 10000000, __int64* tm = nullptr) :
+			m_mt(static_cast<unsigned long>(time(tm))),
+			m_dist(std::uniform_int_distribution<T>(min, max)){
+		}
+		std::complex<T> operator()(){
+			return std::complex<T>(m_dist(m_mt), m_dist(m_mt));
+		}
+
+	private:
+		std::mt19937   m_mt;
+		std::uniform_int_distribution<T> m_dist;
+	};
+
+	
+
 	//
 	// 正态分布分布
 	// 随机数生成器
@@ -664,6 +715,15 @@ namespace mj{
 			Nout = std::pow(2, np);
 		}
 		return Nout;
+	}
+
+	static inline __int64 factorial(__int64 n){
+		if (n <= 1LL){
+			return 1LL;
+		}
+		else{
+			return n*factorial(n - 1);
+		}
 	}
 }
 

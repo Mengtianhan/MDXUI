@@ -89,6 +89,17 @@ private:
 	DxUI::CDxSpinBox				mMinValBox;
 	DxUI::CDxSpinBox				mMaxValBox;
 
+	//
+	// ÐÞ¸Ä±êÌâ
+	//
+	DxUI::CDxEdit					mTitleEdit;
+	DxUI::CDxEdit					mHTitleEdit;
+	DxUI::CDxEdit					mVTitleEdit;
+
+	DxUI::CDxPushButton				mModifyTitleButton;
+	DxUI::CDxPushButton				mModifyHTitleButton;
+	DxUI::CDxPushButton				mModifyVTitleButton;
+
 	DxUI::CDxTableWindow			mDataTable;
 };
 

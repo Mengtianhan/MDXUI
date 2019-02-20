@@ -140,6 +140,7 @@ protected:
 	DxUI::CDxSpinBox*			p_InfoCurveSizeBox{ nullptr };
 	DxUI::CDxPushButton*		p_InfoColorButton{ nullptr };
 	DxUI::CDxPushButton*		p_ExportButton{ nullptr };
+	DxUI::CDxPushButton*		p_ImportButton{ nullptr };
 	DxUI::CDxPushButton*		p_CopyButton{ nullptr };
 	DxUI::CDxPushButton*		p_RemoveButton{ nullptr };
 	DxUI::CDxPushButton*		p_ClearButton{ nullptr };

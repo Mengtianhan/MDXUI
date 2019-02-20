@@ -51,5 +51,6 @@ protected:
 	void OnRender();
 	void OnRender3D();
 	bool OnMouseEvent(const DxUI::CDxMouseEvent& e);
+	void OnPaintEventFor2D(IPainterInterface* painter);
 };
 

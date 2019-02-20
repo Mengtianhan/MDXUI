@@ -48,6 +48,7 @@ namespace DxUI{
 		void	OnTimer();
 		void	OnRendWindow(IPainterInterface* painter);
 		int		Exec();
+		int		Exec(int x,int y);
 
 	protected:
 		DxColor	mTransparentColor;

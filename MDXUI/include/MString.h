@@ -66,6 +66,7 @@ namespace mj{
 	public:
 		MBuffer(const char* ch = "");
 		MBuffer(const char* ch, uint64 len);
+		MBuffer(const MBuffer& other);
 		~MBuffer();
 
 
@@ -81,11 +82,26 @@ namespace mj{
 
 		uint64 size();
 		uint64 size() const;
+		uint64 length() const;
 
 		bool empty();
 		bool empty() const;
 
 		void clear();
+
+
+		MBuffer& operator=(const MBuffer& other);
+		MBuffer& operator=(const char* buffer);
+
+		char& operator[](unsigned index);
+		const char& operator[](unsigned index) const;
+
+		char& operator()(unsigned index);
+		const char& operator()(unsigned index) const;
+
+		char& at(unsigned index);
+		const char& at(unsigned index) const;
+
 
 		bool initBuffer(uint64 size); // 初始化一块内存,已存在内存直接销毁
 		void resize(uint64 size);     // 重新分配内存大小，如果小于原有内存那么将后段内存格式化，如果大于当前内存那么重新分配内存
@@ -117,7 +133,7 @@ namespace mj{
 
 		template<class T, class A, template<class T1, class A1> class C>
 		MBuffer& append(const C<T, A>& values, bool isBigEndian = true){
-			for (T& val : values){
+			for (const T& val : values){
 				append(val, isBigEndian);
 			}
 			return *this;
@@ -125,7 +141,7 @@ namespace mj{
 
 		template<class T, template<class T1> class C>
 		MBuffer& append(const C<T>& values, bool isBigEndian = true){
-			for (T& val : values){
+			for (const T& val : values){
 				append(val, isBigEndian);
 			}
 			return *this;
@@ -252,6 +268,10 @@ namespace mj{
 		MBuffer& operator>>(float& val);
 		MBuffer& operator>>(double& val);
 
+		friend std::ostream& operator<<(std::ostream& os, const MBuffer& buffer){
+			os << buffer.mBuffer;
+			return os;
+		}
 	};
 
 	//
@@ -1787,6 +1807,12 @@ namespace mj{
 			MString str = value;
 			return str.to_utf8();
 		}
+
+
+		//
+		// UTF8 编码转到 GBK
+		//
+		static MString utf8_2_gbk(const MString& utf8str);
 
 
 		//

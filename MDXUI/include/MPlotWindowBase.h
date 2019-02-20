@@ -130,6 +130,14 @@ public:
 	void		Append(const MString& Name, double x, double y);
 	void		Append(const MString& Name, double y);
 
+
+	//
+	// 快速追加
+	//
+	void		FastPlotLine(const MString& Name, const TL::Vector<double>& x, const TL::Vector<double>& y, const DxColor& col = RgbI(0, 255, 0), int size = 1);
+	void		FastAppend(const MString& Name, double x, double y);
+	void		RePlot();
+
 	void		AddMarker(const MString& Name, double x, double y, const DxColor& col = RgbI(0, 0, 0));
 	void		AddMarker(const MString& Name, double x, double y, const MString& bitmap);
 	void		AddMarkerForCurve(const MString& curveName, const MString& markername, double x, const DxColor& col = RgbI(0, 0, 0));
@@ -243,7 +251,11 @@ msignals:
 	void		VerticalLineMove(MString Name, double x,  CDxWidget* sender);
 	TL::MTLVoidEvent<MString, MString, CDxWidget*> Event_SelectedChanged;
 	TL::MTLVoidEvent<MString, double, double, CDxWidget*> Event_MarkerPositionChanged; // maker 移动时触发事件
-	TL::MTLVoidEvent<MString, double, CDxWidget*>	Event_VerticalLineMove;
+	TL::MTLVoidEvent<MString, double, CDxWidget*>	  Event_VerticalLineMove;  // 竖线移动时触发事件
+	TL::MTLVoidEvent<MString, MString, CDxWidget*>    Event_CurverRename;      // 曲线名称被修改时触发事件
+	TL::MTLVoidEvent<MString, MString, CDxWidget*>	  Event_MarkerRemane;	   // Maer名称被修改时触发事件  
+	TL::MTLVoidEvent<MString, CDxWidget*>			  Event_DeleteCurve;	   // 删除曲线出发事件
+	TL::MTLVoidEvent<MString, CDxWidget*>			  Event_DeleteMarker;	   // 删除Marker点触发事件
 
 
 
@@ -335,7 +347,7 @@ protected:
 	DxColor						m_AdditionAreaColor;
 	DxColor						m_MarkerLineColor;
 	DxUI::CDxEffects			m_AdditionTextEffect;
-
+	DxUI::CDxEffects			m_HelpEffects;
 	RECT						m_PlotAreaSizeBox;
 
 	DxUI::CDxPopWindow*			p_HelpPopWindow{ nullptr };

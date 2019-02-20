@@ -196,6 +196,8 @@ namespace DxUI{
 		void	SetOpacity(double val);
 
 
+		void	Clear();
+
 
 		//
 		// …Ë÷√œ‘ æ«¯”Ú

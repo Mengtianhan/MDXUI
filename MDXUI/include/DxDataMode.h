@@ -29,7 +29,7 @@
 #include <Windows.h>
 #include <MAny.h>
 
-#ifdef __M_DEBUG__
+#ifdef __MAPI_DEBUG__
 #define DXDATAMODE_API 
 #else
 #if defined(DIRECTUI_EXPORTS)

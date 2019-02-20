@@ -76,6 +76,7 @@ namespace DxUI{
 	protected:
 		void				CheckedStatus(bool isChecked, CDxWidget* sender);
 		void				UpdateChildWindowPos();
+		void				OnTextChangedEvent();
 
 	private:
 		CDxCheckBox*		pCheckBox{ nullptr };
