@@ -238,6 +238,17 @@ show()
 ![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/18.PNG)
 
 
+
+```
+dealfile("data")
+```
+在data文件夹下面有一些数据文件，这写文件的格式如下图：
+![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/20.PNG)
+
+将这些数据绘制成曲线展示出来：
+![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/19.PNG)
+
+
 ### MDXUI对OpenCV的支持
 将opencv文件夹下面的.h和.cpp架子进工程——为了减少依赖，这两个文件直接以源码的方式提供，由于作者本人对opencv并未研究过，只对cv::Mat进行了一些简单的查看，所以提供的解决方案是基于cv::Mat,未必是最好的。
 ```
