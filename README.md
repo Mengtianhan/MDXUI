@@ -5,6 +5,7 @@
 在使用该框架前先安装DX运行库，可以直接下载DXSDK_Feb10.exe默认安装就好
 
 
+### 怎么使用C++进行编程
 * 一个最简单的创建程序
 ```
 #define DXUI_WINDOW
@@ -72,7 +73,7 @@ int main(int argc, char* argv[])
 ```
 ![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/12.PNG)
 
-### 使用lua脚本
+### 使用lua脚本进行编程
 ```
 require("include.DxUI")
 require("include.filesystem")
@@ -167,6 +168,98 @@ init()
 show()
 ```
 ![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/13.PNG)
+
+### MDXUI和OpenCV对接
+将opencv文件夹下面的.h和.cpp架子进工程——为了减少依赖，这两个文件直接以源码的方式提供
+```
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui.hpp>
+#include "DxOpenCvWindow.h"
+#include <DxMainWindow.h>
+#include <DxListWindow.h>
+#include <DxLayout.h>
+#include <MFileSystem.h>
+#include <DxPushButton.h>
+#include <DxCommDialog.h>
+
+using namespace MFileSystem;
+using namespace DxUI;
+using namespace mj;
+
+
+
+
+int main(int argc, char* argv[])
+{
+	DxUI::CDxApplication* App = DxUI::CDxApplication::Instance();
+	using namespace cv;
+	DxUI::CDxMainWindow wind;
+	bool isOk = false;
+
+	DxUI::CDxWindow CenterWindow;
+	cv::Mat mat = imread("workbase.JPG");
+	DxUI::CDxOpenCvWindow OpenCvWindow;
+	wind.SetCentralWidget(&CenterWindow);
+	DxUI::CDxListWindow ListWindow;
+	DxUI::CDxGridLayout lg;
+	CenterWindow.SetLayout(&lg);
+	DxUI::CDxPushButton Button;
+	DxUI::CDxPushButton Button2;
+	lg.AddWidget(&OpenCvWindow, 0, 0, 10, 10);
+	lg.AddWidget(&ListWindow, 0, 10, 9, 3);
+
+	lg.AddWidget(&Button2, 9, 11, 1, 1);
+	lg.AddWidget(&Button, 9, 12, 1, 1);
+	Button.SetText("摄像头");
+	Button2.SetText("拍照");
+	std::vector<MString> files;
+	MFindFiles(".", "*.JPG", files);
+	ListWindow.AddItems(files);
+	OpenCvWindow.ShowMat(mat);
+
+	ListWindow.Event_SelectedChanged += [&](int index1, int index2, DxUI::CDxWidget* sender){
+		auto item = ListWindow.GetItemByIndex(index1);
+		if (item){
+			mat = imread(item->Text().toStdString().c_str());
+			OpenCvWindow.ShowMat(mat);
+		}
+	};
+
+	Button.Event_Clicked += [&](bool isclicked, DxUI::CDxWidget* sender){
+		if (isOk){
+			isOk = false;
+			return;
+		}
+		isOk = true;
+		std::async(std::launch::async, [&](){
+			VideoCapture capture(0);
+			while (isOk){
+				Mat frame;
+				capture >> frame;
+				OpenCvWindow.ShowMat(frame);
+				::Sleep(30);
+			}
+			capture.release();
+			OpenCvWindow.ShowMat(mat);
+		});
+	};
+
+	Button2.Event_Clicked += [&](bool isClicked, DxUI::CDxWidget* sender){
+		MString FileName = DxUI::CDxCommDialog::GetSaveFileNameW(sender, L"图片文件.png|*.png", L"png");
+		if (FileName.empty()){
+			return;
+		}
+		OpenCvWindow.SaveToFile(FileName);
+	};
+	wind.ShowMaximized();
+	return App->Run();
+}
+```
+![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/13.PNG)
+![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/14.PNG)
+![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/15.PNG)
+如果电脑有摄像头，可以点击按钮摄像头打开摄像头看看效果。
+
 
 * 下面展示一些使用该框架编写的软件的界面：
 ![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/1.PNG)
