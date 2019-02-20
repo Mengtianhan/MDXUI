@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
 	xs = xs.range(-180, 180,1);
 	ys = xs.tranform_copy([](double v){return std::sin(v / 180 * mj::PI); });
 	CDxPlotWindow PlotWindow;
-  PlotWindow.SetExtendEnabled(false);
+  	PlotWindow.SetExtendEnabled(false);
 	PlotWindow.PlotLine("sin", xs, ys);
 	Window.SetCentralWidget(&PlotWindow);
 	Window.Show();
