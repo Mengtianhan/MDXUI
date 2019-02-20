@@ -11,7 +11,7 @@ MDXUI原生就是C++编写，目前除了提供了对lua的支持外只暴漏了
 
 碍于篇幅的问题，下面简单介绍一下MDXUI的入门。如果熟悉Qt的话那么对MDXUI的使用就相当的简单，因为该GUI框架使用的便是Qt的Layout思想，也模拟了Qt的信号槽，自由度却在Qt之上，当然为了方便自然也参考了C#的事件委托，下面展示怎么连接一个按钮的点击事件：
 
-*使用connect的方式关联该事件
+* 使用connect的方式关联该事件
 ```
 void fun(bool isclicked,CDxWidget* sender){}
 
@@ -31,7 +31,7 @@ TL::MTLDataBind::Connect<CDxPushButton>(MSIGNAL(CDxPushButton, Clicked, &But), T
 
 ```
 
-*使用委托的方式将关联起
+* 使用委托的方式将关联起
 ```
 CDxPushButton But;
 
@@ -47,7 +47,7 @@ But.Event_Clicked += TL::MSLOT(&Test::mfun,&test);
 
 
 
-*一个最简单的创建程序
+* 一个最简单的创建程序
 ```
 #define DXUI_WINDOW
 #include <DxApplication.h>
@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
 
 
 
-*添加一个二维曲线的绘图窗口
+* 添加一个二维曲线的绘图窗口
 
 如果只是添加一个窗口那么很简单，直接在主窗口上设置CentraWidget就好，当然对于CDxMainWindow来说设置这个窗口是必须的，可以在该窗CentraWidget上设置Layout，在Layout中添加窗口即可。
 
@@ -136,7 +136,7 @@ LuaExe.exe main.lua MainWindow
 
 该效果等同于双击运行LuaExe.exe效果。
 
-*下面展示一个稍微复杂点的例子
+* 下面展示一个稍微复杂点的例子
 ```
 require("include.DxUI")
 require("include.filesystem")
