@@ -231,8 +231,11 @@ init()
 show()
 ```
 
-![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/13.PNG)
+![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/16.PNG)
 
+![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/17.PNG)
+
+![Image text](https://github.com/Mengtianhan/MDXUI/blob/master/Pic/18.PNG)
 
 
 ### MDXUI对OpenCV的支持
